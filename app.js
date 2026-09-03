@@ -185,6 +185,158 @@ function suggest(exDef){
   return {w: allMax ? lastW + (exDef.step||2.5) : lastW, up: allMax, last:L};
 }
 
+/* ============ treenin tiivistelmä jaettavaksi ============ */
+
+/* Elokuvarepliikit ja Arnoldin omat sitaatit. Alkukielellä, koska ne
+   tunnistetaan siitä — käännettynä ne menettäisivät tehonsa. */
+const ARNOLD = [
+  ['I\'ll be back.', 'T-800, The Terminator (1984)'],
+  ['Hasta la vista, baby.', 'T-800, Terminator 2 (1991)'],
+  ['Come with me if you want to live.', 'T-800, Terminator 2 (1991)'],
+  ['Get to the chopper!', 'Dutch, Predator (1987)'],
+  ['If it bleeds, we can kill it.', 'Dutch, Predator (1987)'],
+  ['I eat Green Berets for breakfast.', 'John Matrix, Commando (1985)'],
+  ['Let off some steam, Bennett.', 'John Matrix, Commando (1985)'],
+  ['Consider that a divorce.', 'Douglas Quaid, Total Recall (1990)'],
+  ['It\'s not a tumor!', 'John Kimble, Kindergarten Cop (1990)'],
+  ['You\'re luggage.', 'John Kruger, Eraser (1996)'],
+  ['Crush your enemies, see them driven before you.', 'Conan, Conan the Barbarian (1982)'],
+  ['Milk is for babies. When you grow up you have to drink beer.', 'Arnold, Pumping Iron (1977)'],
+  ['The last three or four reps is what makes the muscle grow.', 'Arnold Schwarzenegger'],
+  ['This area of pain divides a champion from someone who is not a champion.', 'Arnold Schwarzenegger'],
+  ['The mind is the limit. As long as the mind can envision that you can do something, you can do it.', 'Arnold Schwarzenegger'],
+  ['Strength does not come from winning. Your struggles develop your strengths.', 'Arnold Schwarzenegger'],
+  ['You can\'t climb the ladder of success with your hands in your pockets.', 'Arnold Schwarzenegger'],
+  ['What is the point of being on this Earth if you are going to be like everyone else?', 'Arnold Schwarzenegger'],
+  ['There is no such thing as a self-made man.', 'Arnold Schwarzenegger'],
+  ['The worst thing I can be is the same as everybody else.', 'Arnold Schwarzenegger'],
+  ['Positive thinking can be contagious.', 'Arnold Schwarzenegger'],
+  ['Training gives us an outlet for suppressed energies created by stress.', 'Arnold Schwarzenegger']
+];
+
+/* ---- Kaksi erillistä ennätystyyppiä ----
+
+   SARJAENNÄTYS: liike on viety läpi täydellä sarjamäärällä ja täysillä
+   toistoilla. Ennätyspaino on se paino joka kannettiin KAIKKIEN sarjojen
+   läpi, eli sarjojen kevyin. Yksikin vajaa sarja mitätöi suorituksen.
+
+   MAKSIMIENNÄTYS: liikkeen jokaisessa sarjassa on täsmälleen yksi toisto.
+   Tällöin kyse on maksimiyrityksestä, ja ennätys on raskain nostettu paino.
+
+   Ehdot sulkevat toisensa pois, joten maksimipäivä ei voi rikkoa
+   sarjaennätystä eikä normaali treeni maksimiennätystä.
+
+   Ensimmäinen hyväksytty suoritus asettaa lähtötason eikä ole vielä
+   ennätys — ennätys syntyy vasta kun aiempi taso ylitetään. */
+
+function workSetWeight(x){
+  const sets = x.sets || [];
+  if(!sets.length) return 0;
+  const target = x.target || sets.length;
+  if(sets.length < target) return 0;
+  const need = x.rmax || 0;
+  if(need <= 0) return 0;
+  if(!sets.every(s => (s.r||0) >= need)) return 0;
+  return sets.reduce((a,s) => Math.min(a, s.w||0), Infinity) || 0;
+}
+
+function maxSetWeight(x){
+  const sets = x.sets || [];
+  if(!sets.length) return 0;
+  if(!sets.every(s => (s.r||0) === 1)) return 0;
+  return sets.reduce((a,s) => Math.max(a, s.w||0), 0);
+}
+
+/* Liikkeen ennätykset kaikista treeneistä, valinnaisesti yksi treeni pois lukien. */
+function recordsFor(name, exceptId){
+  let set = null, max = null;
+  S.sessions.forEach(sess => {
+    if(exceptId && sess.id === exceptId) return;
+    sess.ex.forEach(x => {
+      if(x.name !== name) return;
+      const w = workSetWeight(x);
+      if(w > 0 && (!set || w > set.w)) set = {w:w, date:sess.date, sets:x.sets.length, reps:x.rmax};
+      const m = maxSetWeight(x);
+      if(m > 0 && (!max || m > max.w)) max = {w:m, date:sess.date, sets:x.sets.length};
+    });
+  });
+  return {set:set, max:max};
+}
+
+function prsFor(sess){
+  const setPRs = [], maxPRs = [];
+  sess.ex.forEach(x => {
+    const prev = recordsFor(x.name, sess.id);
+    const w = workSetWeight(x);
+    if(w > 0 && prev.set && w > prev.set.w) setPRs.push({name:x.name, w:w, sets:x.sets.length, reps:x.rmax});
+    const m = maxSetWeight(x);
+    if(m > 0 && prev.max && m > prev.max.w) maxPRs.push({name:x.name, w:m});
+  });
+  return {set:setPRs, max:maxPRs};
+}
+
+function summaryText(sess){
+  const sets = setsDone(sess);
+  const reps = sess.ex.reduce((a,x) => a + x.sets.reduce((b,s) => b + (s.r||0), 0), 0);
+  const d = new Date(sess.date).toLocaleDateString("fi-FI", {day:"numeric", month:"numeric", year:"numeric"});
+  const prs = prsFor(sess);
+  const q = ARNOLD[Math.floor(Math.random() * ARNOLD.length)];
+
+  let t = "RAUTAKIRJA — " + sess.name + ", " + d + "\n";
+  t += sess.ex.length + " liikettä, " + sets + " sarjaa, " + reps + " toistoa\n";
+  t += "Nostettu yhteensä " + fmt(volume(sess)) + " kg\n";
+  if(prs.set.length){
+    t += "\nUudet sarjaennätykset:\n";
+    prs.set.forEach(p => {
+      t += "- " + p.name + " " + fmt(p.w) + " kg (" + p.sets + " × " + p.reps + ")\n";
+    });
+  }
+  if(prs.max.length){
+    t += "\nUudet maksimiennätykset:\n";
+    prs.max.forEach(p => { t += "- " + p.name + " " + fmt(p.w) + " kg\n"; });
+  }
+  t += "\n“" + q[0] + "”\n- " + q[1];
+  return t;
+}
+
+async function copyText(text, btn){
+  let ok = false;
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text); ok = true;
+    }
+  }catch(_){}
+  if(!ok){
+    /* Varalla vanha keino: valitaan teksti kentästä ja kopioidaan. */
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      ok = document.execCommand("copy");
+      ta.remove();
+    }catch(_){}
+  }
+  if(ok){
+    toast("Tiivistelmä kopioitu leikepöydälle.");
+    if(btn){ const old = btn.textContent; btn.textContent = "Kopioitu"; setTimeout(()=>{ btn.textContent = old; }, 1800); }
+  } else {
+    toast("Kopiointi ei onnistunut. Maalaa teksti ja kopioi käsin.");
+  }
+}
+
+/* Kortti jossa tiivistelmä näkyy sellaisena kuin se kopioituu. */
+function shareCard(sess){
+  const text = summaryText(sess);
+  const c = el('<div class="card pad"></div>');
+  c.innerHTML =
+    '<div class="eyebrow">Jaettava tiivistelmä</div>'+
+    '<pre class="share-text">'+esc(text)+'</pre>'+
+    '<button class="btn wide" data-copy="'+esc(sess.id)+'">Kopioi teksti</button>';
+  c._text = text;
+  return c;
+}
+
 /* ============ näkymä ============ */
 let route = {tab:"treeni", sheet:null};
 let installPrompt = null;
@@ -408,10 +560,14 @@ function viewHistory(v){
         const h = historyFor(n); const last = h[h.length-1];
         const best = h.reduce((a,b)=> b.e1>a.e1?b:a, h[0]);
         const vals = h.slice(-8).map(x=>x.e1); const mx = Math.max(...vals,1);
+        const rec = recordsFor(n);
+        const tag = rec.set ? 'sarjaennätys '+fmt(rec.set.w)+' kg'
+                  : rec.max ? 'maksimi '+fmt(rec.max.w)+' kg'
+                  : 'ei vielä ennätystä';
         return '<button class="rowlink" data-exname="'+esc(n)+'">'+
           '<div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(n)+'</div>'+
           '<div style="font-size:13px;color:var(--dim)">Viimeksi '+fmt(last.top.w)+' kg × '+last.top.r+
-          ' · paras arvio '+fmt(best.e1)+' kg</div></div>'+
+          ' · '+tag+'</div></div>'+
           '<div class="spark" style="width:56px">'+vals.map(x=>'<i style="height:'+Math.max(8,x/mx*100)+'%"></i>').join("")+'</div>'+
           '<span class="chev">'+I.chev+'</span></button>';
       }).join("");
@@ -566,6 +722,7 @@ function openSheet(){
           '<span class="num">'+fmt(t.w)+' kg × '+t.r+'</span></div>').join("")+
       '</div>').join("");
     body.appendChild(c);
+    body.appendChild(shareCard(sess));
     if(s.type==="summary"){
       body.appendChild(el('<button class="btn wide" data-backup="1">Varmuuskopioi OneDriveen</button>'));
       body.appendChild(el('<button class="btn wide primary" data-close="1">Valmis</button>'));
@@ -576,10 +733,18 @@ function openSheet(){
   if(s.type==="exercise"){
     const h = historyFor(s.name);
     bar.innerHTML = '<h2>'+esc(s.name)+'</h2><button class="btn sm ghost" data-close="1">'+I.x+'</button>';
-    const best = h.reduce((a,b)=> b.e1>a.e1?b:a, h[0]);
-    body.appendChild(el('<div class="card pad"><div class="eyebrow">Paras arvioitu maksimi</div>'+
-      '<div class="num" style="font-size:26px;margin-top:2px">'+fmt(best.e1)+' kg</div>'+
-      '<div style="font-size:13px;color:var(--dim)">'+fmt(best.top.w)+' kg × '+best.top.r+' · '+dateFi(best.date)+'</div></div>'));
+    const rec = recordsFor(s.name);
+    const card = (title, r, sub) =>
+      '<div class="card pad">'+
+        '<div class="eyebrow">'+title+'</div>'+
+        (r ? '<div class="num" style="font-size:24px;margin-top:2px">'+fmt(r.w)+' kg</div>'+
+             '<div style="font-size:12.5px;color:var(--dim)">'+sub(r)+'</div>'
+           : '<div style="font-size:14px;color:var(--faint);margin-top:6px">Ei vielä</div>')+
+      '</div>';
+    body.appendChild(el('<div class="grid2">'+
+      card('Sarjaennätys', rec.set, r => r.sets+' × '+r.reps+' · '+dateFi(r.date))+
+      card('Maksimiennätys', rec.max, r => '1 toisto · '+dateFi(r.date))+
+    '</div>'));
     const c = el('<div class="card"></div>');
     c.innerHTML = [...h].reverse().map(r =>
       '<div class="pad" style="border-top:1px solid var(--line);display:flex;gap:12px;align-items:baseline">'+
@@ -740,6 +905,12 @@ document.addEventListener("click", async e => {
   if(d.delp){ if(!await ask("Poistetaanko ohjelma? Treenihistoria säilyy.","Poista")) return; S.programs=S.programs.filter(x=>x.id!==route.sheet.id); save(); closeSheet(); route.sheet=null; render(); return; }
 
   /* --- data --- */
+  if(d.copy){
+    const card = t.closest(".card");
+    const text = (card && card._text) || "";
+    if(text) copyText(text, t);
+    return;
+  }
   if(d.backup){ doBackup(); return; }
   if(d.install){
     const p = installPrompt; installPrompt = null; render();
