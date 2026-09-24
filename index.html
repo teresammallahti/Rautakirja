@@ -2,7 +2,7 @@
 <html lang="fi">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; connect-src 'self' https://www.googleapis.com https://accounts.google.com; frame-src https://accounts.google.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Henkilökohtainen treenipäiväkirja: ohjelman seuranta salilla sekä painojen, sarjojen ja toistojen kirjaus.">
 <meta name="theme-color" content="#EDEEF1" media="(prefers-color-scheme: light)">
@@ -237,6 +237,7 @@ nav.tabs{
 <main class="wrap"><section class="view" id="view"></section></main>
 <nav class="tabs"><div class="tabs-in" id="nav"></div></nav>
 
+<script src="https://accounts.google.com/gsi/client" async></script>
 <script src="./app.js"></script>
 </body>
 </html>

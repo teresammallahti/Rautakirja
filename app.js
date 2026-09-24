@@ -37,14 +37,38 @@ LIB.forEach(g => g.items.forEach(i => { MG[i.n] = g.g; }));
 
 function uid(p){ return p + Math.random().toString(36).slice(2,9); }
 
+/* Käsipainojen painot kulkevat omaa ruudukkoaan: 1 kg välein 1–10 kg,
+   sen jälkeen 2,5 kg välein (10 → 12,5 → 15 → …). Muilla välineillä
+   käytetään liikkeen omaa askelta.
+   Ruudukon ulkopuolelle jäänyt vanha arvo napsahtaa ruudukkoon
+   ensimmäisellä painalluksella: 17 kg → ylös 17,5 / alas 15. */
+function nextWeight(x, cur, dir){
+  if(x.equip !== "käsipaino") return Math.max(0, cur + dir * (x.step || 2.5));
+  if(dir > 0){
+    if(cur < 10) return Math.floor(cur) + 1;
+    return Math.floor(cur / 2.5) * 2.5 + 2.5;
+  }
+  if(cur <= 10) return Math.max(0, Math.ceil(cur) - 1);
+  const p = Math.ceil(cur / 2.5) * 2.5 - 2.5;
+  return p < 10 ? 10 : p;
+}
+
+/* Vanhan arvon pyöristys ruudukkoon alaspäin — ei koskaan ehdota
+   enemmän kuin mitä on oikeasti nostettu. 17 → 15, 19 → 17,5, 21 → 20. */
+function snapDumbbell(w){
+  if(!(w > 0)) return 0;
+  if(w <= 10) return Math.floor(w);
+  return Math.max(10, Math.floor(w / 2.5) * 2.5);
+}
+
 function seedPrograms(){
   return [
     {id:"p_jalka", name:"Jalkapäivä", est:"45–55 min", ex:[
       {id:uid("x"), name:"Romanialainen maastaveto", equip:"tanko", step:2.5, sets:3, rmin:8, rmax:8, w:140},
       {id:uid("x"), name:"Polven ojennus", equip:"laite", step:5, sets:3, rmin:8, rmax:8, w:100},
       {id:uid("x"), name:"Polven koukistus maaten", equip:"laite", step:5, sets:3, rmin:8, rmax:8, w:50},
-      {id:uid("x"), name:"Pohjenousu seisten korokkeelta", equip:"käsipaino", step:2, sets:3, rmin:20, rmax:20, w:0},
-      {id:uid("x"), name:"Askelkyykkykävely", equip:"käsipaino", step:2, sets:3, rmin:8, rmax:8, w:15}
+      {id:uid("x"), name:"Pohjenousu seisten korokkeelta", equip:"käsipaino", step:1, sets:3, rmin:20, rmax:20, w:0},
+      {id:uid("x"), name:"Askelkyykkykävely", equip:"käsipaino", step:1, sets:3, rmin:8, rmax:8, w:15}
     ]},
     {id:"p_yla", name:"Yläkroppa", est:"60–70 min", ex:[
       {id:uid("x"), name:"Penkkipunnerrus tangolla", equip:"tanko", step:2.5, sets:3, rmin:8, rmax:8, w:87.5},
@@ -60,7 +84,7 @@ function seedPrograms(){
 
 function seed(){
   return {
-    v:4,
+    v:5,
     programs: seedPrograms(),
     sessions:[],
     active:null,
@@ -92,6 +116,15 @@ if(S.v < 4){
     if(/^pohjenousu seisten korokkeelta$/i.test(String(x.name).trim())){ x.rmin = 20; x.rmax = 20; }
   }));
   S.v = 4; save();
+}
+
+/* v4 → v5: käsipainojen aloituspainot ruudukkoon (1 kg alle 10, sitten 2,5 kg).
+   Treenihistoriaan ei kosketa — se on tallenne siitä mitä oikeasti tehtiin. */
+if(S.v < 5){
+  S.programs.forEach(p => p.ex.forEach(x => {
+    if(x.equip === "käsipaino"){ x.w = snapDumbbell(x.w); x.step = 1; }
+  }));
+  S.v = 5; save();
 }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Tallennus ei onnistunut — muisti täynnä?"); } }
@@ -185,6 +218,207 @@ function suggest(exDef){
   return {w: allMax ? lastW + (exDef.step||2.5) : lastW, up: allMax, last:L};
 }
 
+/* ============ Google Drive -varmuuskopiointi ============
+
+   Käytössä on drive.appdata: piilotettu kansio käyttäjän omassa Drivessa,
+   jonka vain tämä sovellus näkee. Appi ei pääse käsiksi mihinkään muuhun
+   tiedostoon. Tunnus ei ole salaisuus — selainsovelluksissa se on aina
+   julkinen, ja turvan hoitaa sallittu origin Google Cloudin puolella. */
+
+const GOOGLE_CLIENT_ID = "";   /* <-- liitä tähän Google Cloudista saatu OAuth-tunnus */
+
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+const DRIVE_FILE  = "rautakirja.json";
+
+let gTok = null, gExp = 0, gClient = null, gBusy = false;
+
+const driveConfigured = () => !!GOOGLE_CLIENT_ID;
+const gisLoaded = () => !!(window.google && window.google.accounts && window.google.accounts.oauth2);
+
+function driveMsg(e){
+  const k = (e && e.message) || "";
+  const M = {
+    no_client_id:"Google Drive -yhteyttä ei ole vielä määritetty tähän sovellukseen.",
+    gis_not_loaded:"Googlen kirjautuminen ei latautunut. Tarkista verkkoyhteys ja lataa sivu uudelleen.",
+    popup_closed:"Kirjautuminen keskeytyi.",
+    popup_failed_to_open:"Selain esti kirjautumisikkunan. Salli ponnahdusikkunat tälle sivustolle.",
+    access_denied:"Käyttöoikeutta ei myönnetty.",
+    unauthorized:"Yhteys vanheni. Yhdistä Google Drive uudelleen.",
+    no_token:"Kirjautuminen ei tuottanut käyttöoikeutta. Yritä uudelleen."
+  };
+  if(M[k]) return M[k];
+  if(/^http_/.test(k)) return "Google Drive vastasi virheellä (" + k.slice(5) + "). Yritä hetken päästä uudelleen.";
+  return "Google Drive -toiminto ei onnistunut" + (k ? ": " + k : ".");
+}
+
+function getToken(interactive){
+  return new Promise((resolve, reject) => {
+    if(gTok && Date.now() < gExp - 60000) return resolve(gTok);
+    if(!driveConfigured()) return reject(new Error("no_client_id"));
+    if(!gisLoaded()) return reject(new Error("gis_not_loaded"));
+    if(!gClient){
+      gClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID, scope: DRIVE_SCOPE, callback: () => {}
+      });
+    }
+    gClient.callback = resp => {
+      if(resp && resp.access_token){
+        gTok = resp.access_token;
+        gExp = Date.now() + ((resp.expires_in || 3600) * 1000);
+        resolve(gTok);
+      } else reject(new Error((resp && resp.error) || "no_token"));
+    };
+    gClient.error_callback = err => reject(new Error((err && err.type) || "no_token"));
+    try{ gClient.requestAccessToken(interactive ? {} : {prompt:""}); }
+    catch(e){ reject(e); }
+  });
+}
+
+async function dFetch(path, opts, token){
+  const o = Object.assign({}, opts || {});
+  o.headers = Object.assign({Authorization:"Bearer " + token}, o.headers || {});
+  const r = await fetch("https://www.googleapis.com/" + path, o);
+  if(r.status === 401){ gTok = null; gExp = 0; throw new Error("unauthorized"); }
+  if(!r.ok) throw new Error("http_" + r.status);
+  return r;
+}
+
+async function driveFind(token){
+  const q = encodeURIComponent("name='" + DRIVE_FILE + "' and trashed=false");
+  const r = await dFetch("drive/v3/files?spaces=appDataFolder&q=" + q +
+                         "&fields=files(id,appProperties,modifiedTime)", {}, token);
+  const j = await r.json();
+  return (j.files && j.files[0]) || null;
+}
+
+async function driveDownload(token, id){
+  const r = await dFetch("drive/v3/files/" + id + "?alt=media", {}, token);
+  return await r.json();
+}
+
+async function driveUpload(token, file){
+  const payload = Object.assign({}, S, {active:null});
+  payload.savedAt = new Date().toISOString();
+  const body = JSON.stringify(payload);
+  const props = {sessions:String(S.sessions.length), savedAt:payload.savedAt};
+
+  if(file){
+    await dFetch("upload/drive/v3/files/" + file.id + "?uploadType=media",
+      {method:"PATCH", headers:{"Content-Type":"application/json"}, body:body}, token);
+    await dFetch("drive/v3/files/" + file.id,
+      {method:"PATCH", headers:{"Content-Type":"application/json"},
+       body:JSON.stringify({appProperties:props})}, token);
+    return file.id;
+  }
+  const meta = {name:DRIVE_FILE, parents:["appDataFolder"], appProperties:props};
+  const b = "rk" + Math.random().toString(36).slice(2);
+  const multipart =
+    "--" + b + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + JSON.stringify(meta) +
+    "\r\n--" + b + "\r\nContent-Type: application/json\r\n\r\n" + body +
+    "\r\n--" + b + "--";
+  const r = await dFetch("upload/drive/v3/files?uploadType=multipart&fields=id",
+    {method:"POST", headers:{"Content-Type":"multipart/related; boundary=" + b}, body:multipart}, token);
+  return (await r.json()).id;
+}
+
+function applyRemote(data){
+  if(!data || !Array.isArray(data.programs) || !Array.isArray(data.sessions)) return false;
+  S = Object.assign(seed(), data, {active:null});
+  S.meta = S.meta || {};
+  S.meta.drive = true;
+  S.meta.driveAt = new Date().toISOString();
+  S.meta.driveCount = S.sessions.length;
+  S.meta.driveNote = null; S.meta.driveErr = null;
+  save();
+  return true;
+}
+
+/* Varmuuskopiointi pilveen. Ei koskaan ylikirjoita pilveä, jossa on
+   ENEMMÄN treenejä kuin tällä laitteella — muuten uudella puhelimella
+   avattu tyhjä appi pyyhkisi koko historian. */
+async function driveSync(quiet){
+  if(gBusy) return false;
+  if(!driveConfigured()){ if(!quiet) toast(driveMsg(new Error("no_client_id"))); return false; }
+  gBusy = true; if(!quiet) render();
+  try{
+    const token = await getToken(!quiet);
+    const file = await driveFind(token);
+    const remoteN = file && file.appProperties ? +file.appProperties.sessions : -1;
+    if(remoteN > S.sessions.length){
+      S.meta.driveNote = "Pilvessä on " + remoteN + " treeniä, tällä laitteella " + S.sessions.length +
+        ". Varmuuskopiointi keskeytettiin, jottei pilven data korvaudu. Palauta pilvestä tai jatka käsin.";
+      S.meta.driveErr = null; save(); gBusy = false; render();
+      if(!quiet) toast(S.meta.driveNote);
+      return false;
+    }
+    await driveUpload(token, file);
+    S.meta.drive = true;
+    S.meta.driveAt = new Date().toISOString();
+    S.meta.driveCount = S.sessions.length;
+    S.meta.driveNote = null; S.meta.driveErr = null;
+    save(); gBusy = false; render();
+    if(!quiet) toast("Varmuuskopio tallennettu Google Driveen.");
+    return true;
+  }catch(e){
+    gBusy = false;
+    if(!quiet){ S.meta.driveErr = driveMsg(e); save(); render(); toast(S.meta.driveErr); }
+    else render();
+    return false;
+  }
+}
+
+async function driveConnect(){
+  if(!driveConfigured()){ toast(driveMsg(new Error("no_client_id"))); return; }
+  try{
+    const token = await getToken(true);
+    S.meta.drive = true; S.meta.driveErr = null; save();
+    const file = await driveFind(token);
+    const remoteN = file && file.appProperties ? +file.appProperties.sessions : -1;
+    if(remoteN > S.sessions.length){
+      render();
+      const yes = await ask("Pilvestä löytyi " + remoteN + " treeniä, tällä laitteella " + S.sessions.length +
+                            ". Palautetaanko pilven data tähän laitteeseen?", "Palauta");
+      if(yes){
+        const data = await driveDownload(token, file.id);
+        if(applyRemote(data)){ render(); toast("Data palautettu: " + S.sessions.length + " treeniä."); return; }
+        toast("Pilven tiedostoa ei voitu lukea.");
+      }
+      render(); return;
+    }
+    await driveSync(true);
+    toast("Google Drive yhdistetty.");
+  }catch(e){
+    S.meta.driveErr = driveMsg(e); save(); toast(S.meta.driveErr);
+  }
+  render();
+}
+
+async function driveRestore(){
+  if(!driveConfigured()){ toast(driveMsg(new Error("no_client_id"))); return; }
+  try{
+    const token = await getToken(true);
+    const file = await driveFind(token);
+    if(!file){ toast("Pilvestä ei löytynyt varmuuskopiota."); return; }
+    const data = await driveDownload(token, file.id);
+    if(!data || !Array.isArray(data.sessions)){ toast("Pilven tiedosto ei ole kelvollinen varmuuskopio."); return; }
+    const yes = await ask("Pilvessä on " + data.sessions.length + " treeniä, tällä laitteella " +
+                          S.sessions.length + ". Laitteen data korvataan pilven datalla.", "Palauta");
+    if(!yes) return;
+    if(applyRemote(data)){ render(); toast("Data palautettu: " + S.sessions.length + " treeniä."); }
+    else toast("Pilven tiedostoa ei voitu lukea.");
+  }catch(e){
+    S.meta.driveErr = driveMsg(e); save(); render(); toast(S.meta.driveErr);
+  }
+}
+
+async function driveDisconnect(){
+  if(!await ask("Katkaistaanko yhteys Google Driveen? Pilvessä oleva varmuuskopio säilyy.", "Katkaise")) return;
+  try{ if(gTok && gisLoaded()) window.google.accounts.oauth2.revoke(gTok, ()=>{}); }catch(_){}
+  gTok = null; gExp = 0;
+  S.meta.drive = false; S.meta.driveNote = null; S.meta.driveErr = null;
+  save(); render(); toast("Yhteys katkaistu.");
+}
+
 /* ============ treenin tiivistelmä jaettavaksi ============ */
 
 /* Elokuvarepliikit ja Arnoldin omat sitaatit. Alkukielellä, koska ne
@@ -211,8 +445,54 @@ const ARNOLD = [
   ['There is no such thing as a self-made man.', 'Arnold Schwarzenegger'],
   ['The worst thing I can be is the same as everybody else.', 'Arnold Schwarzenegger'],
   ['Positive thinking can be contagious.', 'Arnold Schwarzenegger'],
-  ['Training gives us an outlet for suppressed energies created by stress.', 'Arnold Schwarzenegger']
+  ['Training gives us an outlet for suppressed energies created by stress.', 'Arnold Schwarzenegger'],
+
+  ['I need your clothes, your boots, and your motorcycle.', 'T-800, Terminator 2 (1991)'],
+  ['No problemo.', 'T-800, Terminator 2 (1991)'],
+  ['It\'s in your nature to destroy yourselves.', 'T-800, Terminator 2 (1991)'],
+  ['Your clothes. Give them to me.', 'T-800, The Terminator (1984)'],
+  ['Talk to the hand.', 'T-850, Terminator 3 (2003)'],
+  ['Stick around.', 'Dutch, Predator (1987)'],
+  ['Knock knock.', 'Dutch, Predator (1987)'],
+  ['Remember when I promised to kill you last? I lied.', 'John Matrix, Commando (1985)'],
+  ['Don\'t disturb my friend, he\'s dead tired.', 'John Matrix, Commando (1985)'],
+  ['See you at the party, Richter!', 'Douglas Quaid, Total Recall (1990)'],
+  ['Get your ass to Mars.', 'Total Recall (1990)'],
+  ['You\'ve just been erased.', 'John Kruger, Eraser (1996)'],
+  ['Who is your daddy, and what does he do?', 'John Kimble, Kindergarten Cop (1990)'],
+  ['Big mistake.', 'Jack Slater, Last Action Hero (1993)'],
+  ['Put that cookie down!', 'Howard Langston, Jingle All the Way (1996)'],
+  ['Crom, I have never prayed to you before.', 'Conan, Conan the Barbarian (1982)'],
+  ['Here is Subzero, now plain zero.', 'Ben Richards, The Running Man (1987)'],
+  ['Ice to see you.', 'Mr. Freeze, Batman & Robin (1997)'],
+  ['Have you ever killed anyone? Yeah, but they were all bad.', 'Harry Tasker, True Lies (1994)'],
+
+  ['Trust yourself.', 'Arnold Schwarzenegger, kuusi menestyksen sääntöä'],
+  ['Break the rules.', 'Arnold Schwarzenegger, kuusi menestyksen sääntöä'],
+  ['Don\'t be afraid to fail.', 'Arnold Schwarzenegger, kuusi menestyksen sääntöä'],
+  ['Don\'t listen to the naysayers.', 'Arnold Schwarzenegger, kuusi menestyksen sääntöä'],
+  ['Work your butt off.', 'Arnold Schwarzenegger, kuusi menestyksen sääntöä'],
+  ['Give something back.', 'Arnold Schwarzenegger, kuusi menestyksen sääntöä'],
+  ['Everybody pities the weak; jealousy you have to earn.', 'Arnold Schwarzenegger'],
+  ['There are no shortcuts — everything is reps, reps, reps.', 'Arnold Schwarzenegger'],
+  ['For me life is continuously being hungry.', 'Arnold Schwarzenegger'],
+  ['Start wide, expand further, and never look back.', 'Arnold Schwarzenegger'],
+  ['The resistance you fight in the gym and the resistance you fight in life can only build a strong character.', 'Arnold Schwarzenegger'],
+  ['If you need more sleep, sleep faster.', 'Arnold Schwarzenegger'],
+  ['Bodybuilding is much like any other sport. To be successful you must dedicate yourself 100%.', 'Arnold Schwarzenegger'],
+  ['Money doesn\'t make you happy. I now have $50 million but I was just as happy when I had $48 million.', 'Arnold Schwarzenegger']
 ];
+
+/* Lainaus lukitaan treeniin ensimmäisellä katselukerralla ja tallennetaan
+   sen mukana. Näin sama treeni näyttää aina saman lainauksen, myös
+   historiassa selatessa ja varmuuskopion palautuksen jälkeen. */
+function quoteFor(sess){
+  if(Array.isArray(sess.q) && sess.q.length === 2) return sess.q;
+  const q = ARNOLD[Math.floor(Math.random() * ARNOLD.length)];
+  sess.q = q;
+  save();
+  return q;
+}
 
 /* ---- Kaksi erillistä ennätystyyppiä ----
 
@@ -280,7 +560,7 @@ function summaryText(sess){
   const reps = sess.ex.reduce((a,x) => a + x.sets.reduce((b,s) => b + (s.r||0), 0), 0);
   const d = new Date(sess.date).toLocaleDateString("fi-FI", {day:"numeric", month:"numeric", year:"numeric"});
   const prs = prsFor(sess);
-  const q = ARNOLD[Math.floor(Math.random() * ARNOLD.length)];
+  const q = quoteFor(sess);
 
   let t = "RAUTAKIRJA — " + sess.name + ", " + d + "\n";
   t += sess.ex.length + " liikettä, " + sets + " sarjaa, " + reps + " toistoa\n";
@@ -497,7 +777,7 @@ function viewWorkout(v){
         body.appendChild(el(
           '<div class="setrow'+(j===0?" first":"")+(s.ok?" ok":"")+'" data-ex="'+i+'" data-set="'+j+'">'+
             '<div class="sn">'+(j+1)+'</div>'+
-            '<div class="field"><span>Paino kg</span><div class="stepper">'+
+            '<div class="field"><span>Paino kg'+(x.equip==="käsipaino"?" / käsi":"")+'</span><div class="stepper">'+
               '<button class="step" data-d="-1" data-f="w" aria-label="Vähennä painoa">−</button>'+
               '<input inputmode="decimal" data-f="w" value="'+fmt(s.w)+'">'+
               '<button class="step" data-d="1" data-f="w" aria-label="Lisää painoa">+</button></div></div>'+
@@ -524,6 +804,7 @@ function viewWorkout(v){
   });
 
   v.appendChild(el('<div class="stack"></div>')).append(card,
+    el('<button class="btn wide" data-addwex="1">+ Lisää liike treeniin</button>'),
     el('<button class="btn wide primary" data-finish="1" style="margin-top:2px">Lopeta treeni</button>'),
     el('<button class="btn wide ghost" data-cancel="1">Hylkää treeni</button>'));
 }
@@ -540,6 +821,7 @@ function finishWorkout(){
   route.sheet = {type:"summary", id:done.id};
   render(); openSheet();
   releaseWake();
+  if(S.meta.drive && driveConfigured()) driveSync(true);
 }
 
 /* ============ HISTORIA ============ */
@@ -609,7 +891,7 @@ function viewPrograms(v){
   wrap.appendChild(el('<button class="btn wide" data-newp="1">+ Uusi ohjelma</button>'));
   wrap.appendChild(el('<div class="card pad" style="font-size:13.5px;color:var(--dim)">'+
     '<div class="eyebrow" style="margin-bottom:6px">Painon askel</div>'+
-    'Askel määrää paljonko + ja − muuttavat painoa. Oletukset: tanko 2,5 kg · käsipaino 2 kg · talja 2,5 kg · laite 5 kg · kehonpaino 1 kg. Voit muuttaa sen liikekohtaisesti.</div>'));
+    'Askel määrää paljonko + ja − muuttavat painoa. Oletukset: tanko 2,5 kg · talja 2,5 kg · laite 5 kg · kehonpaino 1 kg. Käsipainoilla askel on kiinteä: 1 kg kymmeneen kiloon asti, sen jälkeen 2,5 kg. Käsipainojen paino tarkoittaa aina painoa per käsi.</div>'));
   v.appendChild(wrap);
 }
 
@@ -617,10 +899,44 @@ function viewPrograms(v){
 function viewData(v){
   const wrap = el('<div class="stack"></div>');
   const since = S.sessions.length - (S.meta.backupCount||0);
+
+  /* --- Google Drive --- */
+  const dConn = !!S.meta.drive;
+  const dSince = S.sessions.length - (S.meta.driveCount||0);
+  let dBody;
+  if(!driveConfigured()){
+    dBody = '<div class="hint" style="margin:10px 0 0">Drive-yhteyttä ei ole vielä määritetty tähän sovellukseen. '+
+            'Se vaatii kertaluontoisen tunnuksen Google Cloudista.</div>';
+  } else if(!dConn){
+    dBody = '<p style="font-size:13.5px;color:var(--dim);margin:6px 0 12px">Varmuuskopio tallentuu automaattisesti '+
+            'treenin jälkeen omaan Driveesi piilotettuun kansioon, jonka vain tämä appi näkee. '+
+            'Uudella puhelimella data palautuu kirjautumalla.</p>'+
+            '<button class="btn wide primary" data-dconnect="1">Yhdistä Google Drive</button>';
+  } else {
+    dBody =
+      '<div class="kv"><span>Viimeisin tallennus</span><span class="num">'+
+        (S.meta.driveAt ? dateFi(S.meta.driveAt) : "ei vielä")+'</span></div>'+
+      '<div class="kv"><span>Treenejä sen jälkeen</span><span class="num">'+Math.max(0,dSince)+'</span></div>'+
+      (S.meta.driveNote ? '<div class="hint" style="margin:12px 0 0;border-left-color:var(--gold)">'+esc(S.meta.driveNote)+'</div>' : '')+
+      (S.meta.driveErr ? '<div class="hint" style="margin:12px 0 0;border-left-color:var(--gold)">'+esc(S.meta.driveErr)+'</div>' : '')+
+      '<button class="btn wide primary" data-dsync="1" style="margin-top:13px"'+(gBusy?' disabled':'')+'>'+
+        (gBusy?'Tallennetaan…':'Tallenna pilveen')+'</button>'+
+      '<div class="grid2" style="margin-top:9px">'+
+        '<button class="btn" data-drestore="1">Palauta pilvestä</button>'+
+        '<button class="btn ghost" data-ddisconnect="1">Katkaise</button>'+
+      '</div>';
+  }
+  wrap.appendChild(el(
+    '<div class="card pad">'+
+      '<div class="eyebrow">Pilvi</div>'+
+      '<h2 style="margin:5px 0 4px">Google Drive</h2>'+
+      dBody+
+    '</div>'));
+
   wrap.appendChild(el(
     '<div class="card pad">'+
       '<div class="eyebrow">Varmuuskopio</div>'+
-      '<h2 style="margin:5px 0 8px">Vie OneDriveen</h2>'+
+      '<h2 style="margin:5px 0 8px">Vie tiedostona</h2>'+
       '<div class="kv"><span>Viimeisin varmuuskopio</span><span class="num">'+
         (S.meta.lastBackup ? dateFi(S.meta.lastBackup) : "ei koskaan")+'</span></div>'+
       '<div class="kv"><span>Treenejä sen jälkeen</span><span class="num">'+since+'</span></div>'+
@@ -782,7 +1098,7 @@ function openSheet(){
           '</div>'+
           '<div class="grid2">'+
             '<label class="f"><span class="eyebrow">Sarjat</span><input inputmode="numeric" data-x="sets" value="'+x.sets+'"></label>'+
-            '<label class="f"><span class="eyebrow">Aloituspaino kg</span><input inputmode="decimal" data-x="w" value="'+fmt(x.w)+'"></label>'+
+            '<label class="f"><span class="eyebrow">Aloituspaino kg'+(x.equip==="käsipaino"?" / käsi":"")+'</span><input inputmode="decimal" data-x="w" value="'+fmt(x.w)+'"></label>'+
           '</div>'+
           '<div class="grid2">'+
             '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-x="rmin" value="'+x.rmin+'"></label>'+
@@ -798,8 +1114,10 @@ function openSheet(){
   }
 
   if(s.type==="picker"){
-    bar.innerHTML = '<button class="btn sm ghost" data-pickback="1" aria-label="Takaisin">'+I.back+'</button>'+
-      '<h2>'+(s.exi===null?"Lisää liike":"Vaihda liike")+'</h2>';
+    const ptitle = s.target === "workout" ? "Lisää liike treeniin"
+                 : (s.exi === null ? "Lisää liike" : "Vaihda liike");
+    bar.innerHTML = '<button class="btn sm ghost" data-pickback="1" aria-label="Takaisin">'+
+      (s.target === "workout" ? I.x : I.back)+'</button><h2>'+ptitle+'</h2>';
     body.appendChild(el('<input id="pq" placeholder="Hae liikettä tai lihasryhmää" autocomplete="off" autocapitalize="off">'));
     body.appendChild(el('<div class="card" id="picklist"></div>'));
   }
@@ -811,8 +1129,13 @@ function openSheet(){
 function drawPicker(q){
   const list = document.getElementById("picklist"); if(!list) return;
   const st = route.sheet;
-  const p = S.programs.find(x => x.id === st.back.id);
-  const have = new Set(p ? p.ex.map(e=>e.name) : []);
+  let have;
+  if(st.target === "workout"){
+    have = new Set((S.active ? S.active.ex : []).map(e => e.name));
+  } else {
+    const p = S.programs.find(x => x.id === st.back.id);
+    have = new Set(p ? p.ex.map(e=>e.name) : []);
+  }
   const needle = (q||"").toLowerCase().trim();
   let html = "", n = 0;
   LIB.forEach(g => {
@@ -889,10 +1212,35 @@ document.addEventListener("click", async e => {
   if(d.addcustom){ const p=curProg(); readProgForm(p); p.ex.push({id:uid("x"), name:"", equip:"tanko", step:2.5, sets:3, rmin:8, rmax:8, w:20}); save(); openSheet(); return; }
   if(d.addex){ const p=curProg(); readProgForm(p); save(); route.sheet={type:"picker", back:{type:"program", id:p.id}, exi:null}; openSheet(); return; }
   if(d.swap!==undefined){ const p=curProg(); readProgForm(p); save(); route.sheet={type:"picker", back:{type:"program", id:p.id}, exi:+d.swap}; openSheet(); return; }
-  if(d.pickback){ route.sheet = route.sheet.back; openSheet(); return; }
+  if(d.addwex){ route.sheet = {type:"picker", target:"workout", back:null}; openSheet(); return; }
+  if(d.pickback){
+    if(route.sheet && route.sheet.back){ route.sheet = route.sheet.back; openSheet(); }
+    else { closeSheet(); route.sheet = null; render(); }
+    return;
+  }
   if(d.pick!==undefined){
-    const st = route.sheet, p = S.programs.find(x=>x.id===st.back.id);
+    const st = route.sheet;
     const item = LIB.reduce((a,g)=> a || g.items.find(i=>i.n===d.pick), null);
+
+    /* Liike kesken treenin: lisätään vain tähän treeniin, ei ohjelmaan. */
+    if(st.target === "workout"){
+      if(item && S.active){
+        const step = STEPS[item.e] || 2.5;
+        const sg = suggest({name:item.n, equip:item.e, step:step, rmax:8, w:0});
+        S.active.ex.push({
+          id: uid("x"), name: item.n, equip: item.e, step: step,
+          rmin: 8, rmax: 8, target: 3, up: sg.up, skip: false,
+          sets: Array.from({length:3}, () => ({w: sg.w, r: 8, ok: false}))
+        });
+        route.openEx = S.active.ex.length - 1;
+        save();
+      }
+      closeSheet(); route.sheet = null; render();
+      toast(item ? item.n + " lisätty treeniin." : "Liikettä ei löytynyt.");
+      return;
+    }
+
+    const p = S.programs.find(x=>x.id===st.back.id);
     if(p && item){
       const step = STEPS[item.e] || 2.5;
       if(st.exi===null){ p.ex.push({id:uid("x"), name:item.n, equip:item.e, step:step, sets:3, rmin:8, rmax:8, w:20}); }
@@ -911,6 +1259,10 @@ document.addEventListener("click", async e => {
     if(text) copyText(text, t);
     return;
   }
+  if(d.dconnect){ driveConnect(); return; }
+  if(d.dsync){ driveSync(false); return; }
+  if(d.drestore){ driveRestore(); return; }
+  if(d.ddisconnect){ driveDisconnect(); return; }
   if(d.backup){ doBackup(); return; }
   if(d.install){
     const p = installPrompt; installPrompt = null; render();
@@ -936,7 +1288,7 @@ document.addEventListener("click", e => {
   const x = S.active.ex[+row.dataset.ex], s = x.sets[+row.dataset.set];
   const inp = row.querySelector('input[data-f="'+f+'"]');
   let val = parseFloat(String(inp.value).replace(",",".")); if(isNaN(val)) val = 0;
-  val = f==="w" ? Math.max(0, val + dir*(x.step||2.5)) : Math.max(0, val + dir);
+  val = f==="w" ? nextWeight(x, val, dir) : Math.max(0, val + dir);
   s[f] = val; inp.value = f==="w" ? fmt(val) : val;
   save();
 });
