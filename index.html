@@ -169,6 +169,21 @@ label.f > span{display:block;margin-bottom:4px}
 .setrow.ok .chk{background:var(--good);border-color:transparent;color:#fff}
 .rowtools{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 
+/* ---- automaattitila ---- */
+.setrow.amrap .sn{padding-bottom:13px}
+.setrow.amrap:not(.first) .sn{padding-bottom:0}
+.max{
+  display:inline-block;font-family:Oswald,sans-serif;font-size:9.5px;letter-spacing:.06em;
+  color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:1px 2px;line-height:1.2;
+}
+.hint.down{border-left-color:var(--gold)}
+.autobox{
+  display:flex;flex-direction:column;gap:9px;
+  background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:10px 11px;
+}
+.chkrow{display:flex;align-items:center;gap:10px;font-size:14.5px;cursor:pointer}
+.chkrow input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0}
+
 /* ---- kehityskuvaaja ---- */
 :root{ --ser-strength:#C4441F; --ser-volume:#1F6FC4; }
 @media (prefers-color-scheme:dark){

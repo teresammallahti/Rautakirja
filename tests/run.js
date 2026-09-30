@@ -134,8 +134,11 @@ const group = n => console.log('\n--- ' + n + ' ---');
   await p.locator('[data-mode="automaattinen"]').click(); await p.waitForTimeout(300);
   await T('automaattitilaan vaihto toimii', async () => {
     const c = await p.locator('[data-mode="automaattinen"]').getAttribute('class'); if(!/primary/.test(c)) throw new Error(c); });
-  await T('automaattitila nayttaa toistohaarukan 6-10', async () => {
-    const t = await p.textContent('#view'); if(!/6–10/.test(t)) throw new Error('ei haarukkaa'); });
+  await T('automaattitila nayttaa muokattavan haarukan 6-10', async () => {
+    const a = await p.locator('[data-set="autoRmin"]').inputValue(), b = await p.locator('[data-set="autoRmax"]').inputValue();
+    if(a !== '6' || b !== '10') throw new Error(a + '-' + b); });
+  await T('automaattitilaan siirtyminen aloittaa jakson', async () => {
+    const c = await p.evaluate(() => S.settings.cycleStart); if(!c) throw new Error('ei jakson alkua'); });
   await T('kytkimet toimivat', async () => {
     const before = await p.locator('[data-tog="amrap"]').textContent();
     await p.locator('[data-tog="amrap"]').click(); await p.waitForTimeout(200);
@@ -144,6 +147,108 @@ const group = n => console.log('\n--- ' + n + ' ---');
   await T('asetus sailyy latauksen yli', async () => {
     await p.reload({waitUntil:'load'}); await p.waitForTimeout(450);
     const m = await p.evaluate(() => S.settings.mode); if(m !== 'automaattinen') throw new Error(m); });
+
+  group('Automaattimoottori');
+  const eng = await p.evaluate(() => {
+    const keep = JSON.stringify(S);
+    S.settings = Object.assign(defaultSettings(), {mode:'automaattinen', cycleStart:new Date().toISOString()});
+    const def = {id:'k', name:'Kyykky', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:100};
+    const mk = (id, d, w, reps, opt) => Object.assign({id, programId:'t', name:'T', date:new Date(2026,0,d).toISOString(),
+      startedAt:0, finishedAt:1, ex:[{id:'k', name:'Kyykky', equip:'tanko', step:2.5, target:reps.length, rmin:6, rmax:10,
+        sets:reps.map((r,i) => ({w, r, ok:true, a: !!(opt && opt.amrap && i === reps.length-1)}))}]}, opt && opt.sess || {});
+    const R = {};
+    S.sessions = [];                                   R.first = autoPlan(def);
+    S.sessions = [mk('a',1,100,[10,10,10])];            R.onceTop = autoPlan(def);
+    S.sessions = [mk('a',1,100,[10,10,10]), mk('b',4,100,[10,10,10])]; R.twiceTop = autoPlan(def);
+    S.sessions = [mk('a',1,100,[10,10,13],{amrap:true})]; R.amrapBig = autoPlan(def);
+    S.sessions = [mk('a',1,100,[10,10,12],{amrap:true})]; R.amrapSmall = autoPlan(def);
+    S.sessions = [mk('a',1,100,[8,7,6])];               R.mid = autoPlan(def);
+    S.sessions = [mk('a',1,100,[6,5,5]), mk('b',4,100,[5,5,4])]; R.under = autoPlan(def);
+    S.sessions = [mk('a',1,100,[10,10,10]), mk('b',4,100,[10,10,10],{sess:{deload:true}})]; R.skipDeloadHist = autoPlan(def);
+    S.settings.twoSession = false;
+    S.sessions = [mk('a',1,100,[10,10,10])];            R.noTwo = autoPlan(def);
+    S.settings.twoSession = true;
+    // jakson viikot: 6 vk jakso, viikko 5 = sarjamäärän nosto, viikko 6 = kevennys
+    const ago = w => new Date(Date.now() - (w*7+1)*864e5).toISOString();
+    S.sessions = [mk('a',1,100,[8,8,8])];
+    S.settings.cycleStart = ago(4); R.ramp = autoPlan(def); R.rampCyc = cycleInfo();
+    S.settings.cycleStart = ago(5); R.deload = autoPlan(def); R.deloadCyc = cycleInfo();
+    S.settings.skipDeload = cycleInfo().idx; R.skipped = autoPlan(def); S.settings.skipDeload = null;
+    S.settings.cycleStart = new Date().toISOString();
+    R.dumb = (S.sessions = [mk('a',1,15,[10,10,10]), mk('b',4,15,[10,10,10])],
+              autoPlan({name:'Kyykky', equip:'käsipaino', sets:3, w:15}));
+    R.noAmrapDef = autoPlan(Object.assign({}, def, {noAmrap:true}));
+    R.ownRange = (S.sessions = [], autoPlan(Object.assign({}, def, {autoRmin:20, autoRmax:24})));
+    R.entry = (S.sessions = [], autoEntry(def));
+    S = JSON.parse(keep); save();
+    return R;
+  });
+  await T('ensimmainen kerta: haarukan alaraja', async () => {
+    if(eng.first.reps.join() !== '6,6,6' || eng.first.w !== 100) throw new Error(JSON.stringify(eng.first)); });
+  await T('ylaraja kerran: paino pysyy (kahden kerran saanto)', async () => {
+    if(eng.onceTop.up || eng.onceTop.w !== 100) throw new Error(JSON.stringify(eng.onceTop)); });
+  await T('ylaraja kahdesti: paino nousee askeleen ja toistot alarajalle', async () => {
+    if(!eng.twiceTop.up || eng.twiceTop.w !== 102.5 || eng.twiceTop.reps.join() !== '6,6,6') throw new Error(JSON.stringify(eng.twiceTop)); });
+  await T('AMRAP +3 yli ylarajan: paino nousee heti', async () => {
+    if(!eng.amrapBig.up || eng.amrapBig.w !== 102.5) throw new Error(JSON.stringify(eng.amrapBig)); });
+  await T('AMRAP +2 ei riita pikanostoon', async () => {
+    if(eng.amrapSmall.up) throw new Error(JSON.stringify(eng.amrapSmall)); });
+  await T('haarukan keskella: sama paino, +1 toisto per sarja', async () => {
+    if(eng.mid.w !== 100 || eng.mid.reps.join() !== '9,8,7') throw new Error(JSON.stringify(eng.mid)); });
+  await T('kahdesti alle haarukan: paino kevenee askeleen', async () => {
+    if(!eng.under.down || eng.under.w !== 97.5) throw new Error(JSON.stringify(eng.under)); });
+  await T('kevennysviikko ei kelpaa kahden kerran saantoon', async () => {
+    if(eng.skipDeloadHist.up) throw new Error('kevennys laskettiin onnistumiseksi'); });
+  await T('kahden kerran saanto pois: yksi onnistuminen riittaa', async () => {
+    if(!eng.noTwo.up) throw new Error(JSON.stringify(eng.noTwo)); });
+  await T('jakson viikko 5/6: sarjamaara 3 → 4', async () => {
+    if(eng.rampCyc.week !== 5 || eng.ramp.sets !== 4) throw new Error('vk ' + eng.rampCyc.week + ', sarjoja ' + eng.ramp.sets); });
+  await T('jakson viikko 6/6: kevennys, sarjat puoleen, paino ennallaan, ei AMRAPia', async () => {
+    if(eng.deloadCyc.week !== 6 || !eng.deload.deload || eng.deload.sets !== 2 || eng.deload.w !== 100 || eng.deload.amrap)
+      throw new Error(JSON.stringify(eng.deload)); });
+  await T('ohitettu kevennys palauttaa normaalin treenin', async () => {
+    if(eng.skipped.deload) throw new Error('kevennys yha paalla'); });
+  await T('kasipaino nousee ruudukkoa pitkin 15 → 17,5', async () => {
+    if(eng.dumb.w !== 17.5) throw new Error(String(eng.dumb.w)); });
+  await T('liikekohtainen AMRAP-poissulku toimii', async () => {
+    if(eng.noAmrapDef.amrap) throw new Error('AMRAP paalla vaikka poissuljettu'); });
+  await T('liikkeen oma haarukka ohittaa yleisen', async () => {
+    if(eng.ownRange.rmin !== 20 || eng.ownRange.rmax !== 24) throw new Error(eng.ownRange.rmin + '-' + eng.ownRange.rmax); });
+  await T('AMRAP-merkki vain viimeisella sarjalla', async () => {
+    const f = eng.entry.sets.map(t => t.a ? 1 : 0).join(''); if(f !== '001') throw new Error(f); });
+
+  group('Automaattitila kaytossa');
+  await p.evaluate(() => { S.sessions = []; S.active = null;
+    /* Asetukset-ryhmä kytki kytkimiä testatessaan — palautetaan oletukset,
+       ettei testien järjestys vaikuta tuloksiin. */
+    S.settings = Object.assign(defaultSettings(), {mode:'automaattinen', cycleStart:new Date().toISOString()});
+    save(); });
+  await p.reload({waitUntil:'load'}); await p.waitForTimeout(450);
+  await T('migraatio: pohjenousulla oma haarukka 20-24', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex.find(e => /Pohjenousu/.test(e.name)); return [x.autoRmin, x.autoRmax]; });
+    if(r.join() !== '20,24') throw new Error(r.join()); });
+  await T('migraatio: maastaveto ilman AMRAPia', async () => {
+    const r = await p.evaluate(() => S.programs[0].ex.find(e => /maastaveto/.test(e.name)).noAmrap);
+    if(r !== true) throw new Error(String(r)); });
+  await T('kotinakyma nayttaa jaksokortin', async () => {
+    const t = await p.textContent('#view'); if(!/jakso 1/i.test(t) || !/viikko 1\/6/.test(t)) throw new Error(t.slice(0,120)); });
+  await p.locator('[data-start="p_jalka"]').click(); await p.waitForTimeout(350);
+  await T('treeni kayttaa automaattihaarukkaa 6 toistoa', async () => {
+    const v = await p.evaluate(() => S.active.ex[1].sets.map(s => s.r).join()); if(v !== '6,6,6') throw new Error(v); });
+  await T('maastavedossa ei MAX-merkkia', async () => {
+    const n = await p.locator('.ex').first().locator('.setrow.amrap').count(); if(n) throw new Error('MAX-rivi maastavedossa'); });
+  await T('polven ojennuksessa MAX-merkki viimeisella sarjalla', async () => {
+    await p.locator('.ex-head').nth(1).click(); await p.waitForTimeout(250);
+    const rows = p.locator('.ex').nth(1).locator('.setrow');
+    const last = await rows.last().getAttribute('class'); const first = await rows.first().getAttribute('class');
+    if(!/amrap/.test(last) || /amrap/.test(first)) throw new Error(first + ' | ' + last); });
+  await T('perustelu nakyy vihjeessa', async () => {
+    const t = await p.locator('.ex').nth(1).textContent(); if(!/Ensimmäinen kerta/.test(t)) throw new Error(t.slice(0,160)); });
+  await T('sarjan lisays siirtaa MAX-merkin viimeiselle', async () => {
+    await p.locator('.ex').nth(1).locator('[data-addset]').click(); await p.waitForTimeout(250);
+    const f = await p.evaluate(() => S.active.ex[1].sets.map(t => t.a ? 1 : 0).join('')); if(f !== '0001') throw new Error(f); });
+  await p.locator('[data-cancel]').click(); await p.waitForTimeout(200); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(250);
+  await p.evaluate(() => { S.settings.mode = 'staattinen'; save(); });
 
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });

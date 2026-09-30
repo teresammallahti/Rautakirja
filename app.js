@@ -75,17 +75,19 @@ function defaultSettings(){
     addSets: true,          /* sarjamäärä 3 -> 4 ajan myötä */
     maxSets: 4,
     amrap: true,            /* viimeinen sarja maksimiin (tekniseen asti) */
-    deloadWeeks: 6          /* 0 = ei deload-ehdotusta */
+    deloadWeeks: 6,         /* 0 = ei kevennysviikkoja */
+    cycleStart: null,       /* jakson alku; asetetaan kun automaattitila otetaan käyttöön */
+    skipDeload: null        /* ohitetun kevennysviikon jakson numero */
   };
 }
 
 function seedPrograms(){
   return [
     {id:"p_jalka", name:"Jalkapäivä", est:"45–55 min", ex:[
-      {id:uid("x"), name:"Romanialainen maastaveto", equip:"tanko", step:2.5, sets:3, rmin:8, rmax:8, w:140},
+      {id:uid("x"), name:"Romanialainen maastaveto", equip:"tanko", step:2.5, sets:3, rmin:8, rmax:8, w:140, noAmrap:true},
       {id:uid("x"), name:"Polven ojennus", equip:"laite", step:5, sets:3, rmin:8, rmax:8, w:100},
       {id:uid("x"), name:"Polven koukistus maaten", equip:"laite", step:5, sets:3, rmin:8, rmax:8, w:50},
-      {id:uid("x"), name:"Pohjenousu seisten korokkeelta", equip:"käsipaino", step:1, sets:3, rmin:20, rmax:20, w:0},
+      {id:uid("x"), name:"Pohjenousu seisten korokkeelta", equip:"käsipaino", step:1, sets:3, rmin:20, rmax:20, w:0, autoRmin:20, autoRmax:24},
       {id:uid("x"), name:"Askelkyykkykävely", equip:"käsipaino", step:1, sets:3, rmin:8, rmax:8, w:15}
     ]},
     {id:"p_yla", name:"Yläkroppa", est:"60–70 min", ex:[
@@ -102,7 +104,7 @@ function seedPrograms(){
 
 function seed(){
   return {
-    v:6,
+    v:7,
     programs: seedPrograms(),
     sessions:[],
     active:null,
@@ -151,6 +153,23 @@ if(S.v < 5){
 if(S.v < 6){
   S.settings = Object.assign(defaultSettings(), S.settings || {});
   S.v = 6; save();
+}
+
+/* v6 → v7: automaattitilan liikekohtaiset poikkeukset.
+   - Pohjenousu: oma haarukka 20–24. Lähde: Teren alkuperäinen ohjelma
+     (kuvakaappaus 2026-08-30: "Pohjenousu seisten korokkeelta 3 × 20–24").
+     Yleinen 6–10 ei sovi pohkeille.
+   - Maastavedot: ei AMRAP-sarjaa. Tekninen uupumus selkä pyöristyen
+     140 kilolla on huono idea; AMRAP-ohjeistuksessa selän pyöristyminen
+     maastavedossa on nimenomaan pysähtymisen merkki. */
+if(S.v < 7){
+  S.programs.forEach(p => p.ex.forEach(x => {
+    if(/^pohjenousu/i.test(String(x.name).trim()) && !x.autoRmin){ x.autoRmin = 20; x.autoRmax = 24; }
+    if(/maastaveto/i.test(String(x.name)) && x.noAmrap === undefined) x.noAmrap = true;
+  }));
+  if(S.settings.cycleStart === undefined) S.settings.cycleStart = null;
+  if(S.settings.skipDeload === undefined) S.settings.skipDeload = null;
+  S.v = 7; save();
 }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Tallennus ei onnistunut — muisti täynnä?"); } }
@@ -241,7 +260,141 @@ function suggest(exDef){
   const ok = L.ex.sets.filter(t=>t.ok);
   const lastW = ok[ok.length-1].w;
   const allMax = ok.length >= (L.ex.target||ok.length) && ok.every(t => t.r >= exDef.rmax);
-  return {w: allMax ? lastW + (exDef.step||2.5) : lastW, up: allMax, last:L};
+  return {w: allMax ? nextWeight(exDef, lastW, 1) : lastW, up: allMax, last:L};
+}
+
+/* ============ automaattinen harjoitusmalli ============
+
+   Perustuu tutkimukseen joka on kirjattu projektin muistiin:
+   - KAKSOISPROGRESSIO: toistot nousevat haarukan sisällä, paino nousee kun
+     kaikki sarjat yltävät ylärajaan, ja toistot palaavat alarajalle.
+   - KAHDEN KERRAN SÄÄNTÖ (ACSM): paino nousee vasta toisesta peräkkäisestä
+     onnistumisesta samalla painolla.
+   - AMRAP: viimeinen sarja tekniseen uupumukseen. Jos se menee vähintään
+     kolme toistoa yli ylärajan, paino nousee heti — tämä on AMRAP-datan
+     varsinainen hyöty.
+   - JAKSO: kevennysviikko jakson lopussa (sarjat puoleen, paino ennallaan,
+     ei taukoa — täysi tauko heikensi voimakehitystä). Sarjamäärä nousee
+     jakson jälkipuoliskolla.
+   - TURVAVENTTIILI: kaksi peräkkäistä kertaa alle haarukan samalla painolla
+     → paino kevenee askeleen.
+   Päätökset lasketaan treenihistoriasta eikä erillisestä tilasta, joten ne
+   eivät voi ajautua ristiriitaan todellisuuden kanssa. */
+
+const isAuto = () => S.settings && S.settings.mode === "automaattinen";
+
+function cycleInfo(){
+  const st = S.settings;
+  if(!isAuto() || !st.cycleStart) return null;
+  const L = st.deloadWeeks || 0;
+  const weeks = Math.max(0, Math.floor((Date.now() - new Date(st.cycleStart).getTime()) / (7 * 864e5)));
+  if(!L) return {week: weeks + 1, len: 0, idx: 0, deload: false, ramp: false, skipped: false};
+  const idx = Math.floor(weeks / L);
+  const wk = (weeks % L) + 1;
+  const isDeloadWeek = wk === L;
+  const skipped = isDeloadWeek && st.skipDeload === idx;
+  return {
+    week: wk, len: L, idx: idx,
+    deload: isDeloadWeek && !skipped,
+    skipped: skipped,
+    ramp: !!st.addSets && wk > Math.floor(L / 2) && wk < L
+  };
+}
+
+function autoRange(x){
+  const st = S.settings;
+  const a = x.autoRmin || st.autoRmin, b = x.autoRmax || st.autoRmax;
+  return [Math.min(a, b), Math.max(a, b)];
+}
+
+/* Liikkeen suoritukset uusimmasta vanhimpaan, kevennysviikot pois lukien —
+   kevennys ei ole onnistuminen eikä epäonnistuminen. */
+function exHistory(name, exceptId){
+  const out = [];
+  for(let i = S.sessions.length - 1; i >= 0; i--){
+    const s = S.sessions[i];
+    if(s.deload || (exceptId && s.id === exceptId)) continue;
+    const x = s.ex.find(e => e.name === name && e.sets.length);
+    if(x) out.push(x);
+  }
+  return out;
+}
+const workW  = x => x.sets.reduce((a, t) => Math.min(a, t.w || 0), Infinity);
+const qualifies = x => x.sets.length >= (x.target || x.sets.length) && x.sets.every(t => (t.r || 0) >= (x.rmax || 0));
+const underRange = x => x.sets.some(t => (t.r || 0) < (x.rmin || 0));
+
+function autoPlan(def){
+  const st = S.settings;
+  const [rmin, rmax] = autoRange(def);
+  const cyc = cycleInfo();
+  const base = def.sets || st.sets || 3;
+  let sets = cyc && cyc.ramp ? Math.min(Math.max(st.maxSets || base, base), base + 1) : base;
+  const h = exHistory(def.name);
+  let w, reps, reason, up = false, down = false;
+  const fill = (n, v) => Array.from({length: n}, () => v);
+
+  if(!h.length){
+    w = def.w || 0;
+    reps = fill(sets, rmin);
+    reason = "Ensimmäinen kerta: aloita haarukan alarajalta.";
+  } else {
+    const last = h[0], wl = workW(last);
+    const prev = h[1] && workW(h[1]) === wl ? h[1] : null;
+    const q0 = qualifies(last), q1 = !!(prev && qualifies(prev));
+    const ls = last.sets[last.sets.length - 1];
+    const amrapBig = q0 && ls && ls.a && (ls.r || 0) >= (last.rmax || rmax) + 3;
+
+    if(q0 && (!st.twoSession || q1 || amrapBig)){
+      w = nextWeight(def, wl, 1); reps = fill(sets, rmin); up = true;
+      reason = (amrapBig && st.twoSession && !q1)
+        ? "Viimeinen sarja meni reilusti yli: paino nousee heti."
+        : "Yläraja saavutettu" + (st.twoSession ? " kahdesti peräkkäin" : "") + ": paino nousee.";
+    } else if(underRange(last) && prev && underRange(prev)){
+      w = nextWeight(def, wl, -1); reps = fill(sets, rmin); down = true;
+      reason = "Kahdesti alle haarukan: paino kevenee askeleen.";
+    } else {
+      w = wl;
+      reps = Array.from({length: sets}, (_, i) => {
+        const t = last.sets[i] ? (last.sets[i].r || 0) + 1 : rmin;
+        return Math.max(rmin, Math.min(rmax, t));
+      });
+      reason = q0 ? "Yläraja saavutettu kerran — vielä kerran samalla painolla."
+                  : "Sama paino, tavoite yksi toisto enemmän per sarja.";
+    }
+  }
+
+  let deload = false;
+  if(cyc && cyc.deload){
+    deload = true;
+    w = h.length ? workW(h[0]) : (def.w || 0);
+    sets = Math.max(1, Math.ceil(base / 2));
+    reps = fill(sets, rmin);
+    up = false; down = false;
+    reason = "Kevennysviikko: sarjat puoleen, paino ennallaan.";
+  }
+
+  return {
+    w: w, rmin: rmin, rmax: rmax, sets: sets, reps: reps,
+    up: up, down: down, reason: reason, deload: deload,
+    amrap: !!st.amrap && !def.noAmrap && !deload
+  };
+}
+
+/* Treenin liike-entry automaattisuunnitelmasta. */
+function autoEntry(def){
+  const pl = autoPlan(def);
+  return {
+    id: def.id || uid("x"), name: def.name, equip: def.equip,
+    step: def.step || STEPS[def.equip] || 2.5,
+    rmin: pl.rmin, rmax: pl.rmax, target: pl.sets,
+    up: pl.up, down: pl.down, reason: pl.reason, amrap: pl.amrap, skip: false,
+    sets: pl.reps.map((r, i) => ({w: pl.w, r: r, ok: false, a: pl.amrap && i === pl.reps.length - 1}))
+  };
+}
+
+/* AMRAP-merkki kuuluu aina viimeiselle sarjalle, myös sarjoja lisättäessä. */
+function reAmrap(x){
+  x.sets.forEach((t, i) => { t.a = !!x.amrap && i === x.sets.length - 1; });
 }
 
 /* ============ Google Drive -varmuuskopiointi ============
@@ -952,6 +1105,29 @@ function viewHome(v){
       '<button class="btn wide primary" data-install="1">Lisää aloitusnäytölle</button></div>'));
   }
 
+  const cyc = cycleInfo();
+  if(cyc && cyc.len){
+    if(cyc.deload){
+      wrap.appendChild(el(
+        '<div class="card pad" style="border-left:3px solid var(--good)">'+
+          '<div class="eyebrow">Kevennysviikko · jakso '+(cyc.idx+1)+'</div>'+
+          '<p style="margin:6px 0 12px">Tämän viikon treenit ovat kevyempiä: sarjat puoleen, painot ennallaan, '+
+          'ei maksimisarjoja. Palautuminen näkyy seuraavan jakson tuloksissa.</p>'+
+          '<button class="btn wide ghost" data-skipdeload="1">Ohita tämä kevennys</button></div>'));
+    } else {
+      wrap.appendChild(el(
+        '<div class="card pad" style="padding-top:11px;padding-bottom:11px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+            '<span class="eyebrow">Automaattinen · jakso '+(cyc.idx+1)+'</span>'+
+            '<span class="num" style="font-size:13.5px">viikko '+cyc.week+'/'+cyc.len+'</span>'+
+          '</div>'+
+          (cyc.ramp ? '<div style="font-size:13px;color:var(--dim);margin-top:5px">Sarjamäärä nostettu tälle viikolle.</div>' : '')+
+          (cyc.skipped ? '<div style="font-size:13px;color:var(--dim);margin-top:5px">Kevennys ohitettu. '+
+            '<button class="pill" data-undodeload="1">Peru</button></div>' : '')+
+        '</div>'));
+    }
+  }
+
   const sinceBackup = S.sessions.length - (S.meta.backupCount||0);
   if(sinceBackup >= 3){
     wrap.appendChild(el(
@@ -1005,6 +1181,7 @@ function startWorkout(pid){
   S.active = {
     id: uid("s"), programId:p.id, name:p.name, date:new Date().toISOString(), startedAt:Date.now(),
     ex: p.ex.map(e => {
+      if(isAuto()) return autoEntry(e);
       const sg = suggest(e);
       return {
         id:e.id, name:e.name, equip:e.equip, step:e.step||STEPS[e.equip]||2.5,
@@ -1014,6 +1191,11 @@ function startWorkout(pid){
     }),
     note:""
   };
+  if(isAuto()){
+    const cyc = cycleInfo();
+    S.active.mode = "auto";
+    S.active.deload = !!(cyc && cyc.deload);
+  }
   save(); route.tab="treeni"; render(); wakeLock();
 }
 
@@ -1037,13 +1219,23 @@ function viewWorkout(v){
         '<span class="idx">'+(done && !x.skip ? "✓" : i+1)+'</span>'+
         '<span class="ex-name">'+esc(x.name)+
           '<span class="ex-meta"><span class="num">'+esc(summary)+'</span>'+
-          (x.up && !okSets.length ? '<span class="pill accent">Nosta painoa</span>' : '')+'</span></span>'+
+          (x.up && !okSets.length ? '<span class="pill accent">Nosta painoa</span>' : '')+
+          (x.down && !okSets.length ? '<span class="pill">Kevennä</span>' : '')+'</span></span>'+
       '</button>'));
 
     if(open && !x.skip){
       const body = el('<div class="ex-body"></div>');
       const L = lastFor(x.name, A.id);
-      if(L){
+      if(x.reason){
+        body.appendChild(el('<div class="hint'+(x.up?" up":x.down?" down":"")+'">'+
+          '<span class="num">'+x.sets.length+' × '+(x.rmin===x.rmax?x.rmin:x.rmin+'–'+x.rmax)+'</span>'+
+          '<span>'+esc(x.reason)+'</span>'+
+          (L ? '<span style="width:100%;font-size:12.5px">Viimeksi: <span class="num">'+
+                L.ex.sets.filter(t=>t.ok).map(t=>fmt(t.r)).join(" · ")+' × '+
+                fmt(L.ex.sets.filter(t=>t.ok).slice(-1)[0].w)+' kg</span></span>' : '')+
+          (x.amrap ? '<span style="width:100%;font-size:12.5px"><b>Viimeinen sarja:</b> niin monta kuin tekniikka kestää.</span>' : '')+
+        '</div>'));
+      } else if(L){
         const ok = L.ex.sets.filter(t=>t.ok);
         body.appendChild(el('<div class="hint'+(x.up?" up":"")+'">'+
           '<span>Viimeksi '+dateFi(L.sess.date).toLowerCase()+':</span>'+
@@ -1055,8 +1247,8 @@ function viewWorkout(v){
 
       x.sets.forEach((s,j) => {
         body.appendChild(el(
-          '<div class="setrow'+(j===0?" first":"")+(s.ok?" ok":"")+'" data-ex="'+i+'" data-set="'+j+'">'+
-            '<div class="sn">'+(j+1)+'</div>'+
+          '<div class="setrow'+(j===0?" first":"")+(s.ok?" ok":"")+(s.a?" amrap":"")+'" data-ex="'+i+'" data-set="'+j+'">'+
+            '<div class="sn">'+(s.a?'<span class="max">MAX</span>':(j+1))+'</div>'+
             '<div class="field"><span>Paino kg'+(x.equip==="käsipaino"?" / käsi":"")+'</span><div class="stepper">'+
               '<button class="step" data-d="-1" data-f="w" aria-label="Vähennä painoa">−</button>'+
               '<input inputmode="decimal" data-f="w" value="'+fmt(s.w)+'">'+
@@ -1196,17 +1388,31 @@ function viewData(v){
       ? '<p style="font-size:13.5px;color:var(--dim);margin:10px 0 0">Appi säätää kuormaa puolestasi: '+
         'toistohaarukka, painon nosto vasta kahdesta peräkkäisestä onnistumisesta, sarjamäärän kasvatus '+
         'ja kevennysviikon ehdotus.</p>'+
-        '<div class="kv"><span>Toistohaarukka</span><span class="num">'+st.autoRmin+'–'+st.autoRmax+'</span></div>'+
+        '<div class="grid2" style="margin-top:11px">'+
+          '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-set="autoRmin" value="'+st.autoRmin+'"></label>'+
+          '<label class="f"><span class="eyebrow">Toistot enint.</span><input inputmode="numeric" data-set="autoRmax" value="'+st.autoRmax+'"></label>'+
+        '</div>'+
         '<div class="kv"><span>Kahden kerran sääntö</span>'+
           '<button class="pill '+(st.twoSession?'good':'')+'" data-tog="twoSession">'+(st.twoSession?'Päällä':'Pois')+'</button></div>'+
         '<div class="kv"><span>Sarjamäärä kasvaa '+st.sets+' → '+st.maxSets+'</span>'+
           '<button class="pill '+(st.addSets?'good':'')+'" data-tog="addSets">'+(st.addSets?'Päällä':'Pois')+'</button></div>'+
         '<div class="kv"><span>Viimeinen sarja maksimiin</span>'+
           '<button class="pill '+(st.amrap?'good':'')+'" data-tog="amrap">'+(st.amrap?'Päällä':'Pois')+'</button></div>'+
-        '<div class="kv"><span>Kevennysviikko</span><span class="num">'+
-          (st.deloadWeeks ? st.deloadWeeks+' vk välein' : 'ei käytössä')+'</span></div>'+
-        '<div class="hint" style="margin:12px 0 0">Automatiikan moottori on vielä rakenteilla. '+
-          'Asetukset tallentuvat jo nyt, mutta treeni käyttää toistaiseksi staattista kaavaa.</div>'
+        '<div class="kv"><span>Jakson pituus</span>'+
+          '<select data-dw="1" style="width:auto;padding:6px 8px">'+
+            [0,4,5,6,8].map(n => '<option value="'+n+'"'+(n===st.deloadWeeks?' selected':'')+'>'+
+              (n ? n+' vk' : 'ei jaksoa')+'</option>').join('')+
+          '</select></div>'+
+        (function(){
+          const c = cycleInfo();
+          if(!c || !c.len) return '<p style="font-size:12.5px;color:var(--dim);margin:9px 0 0">Ilman jaksoa ei kevennysviikkoja '+
+            'eikä sarjamäärän kasvatusta.</p>';
+          return '<div class="kv"><span>Nyt</span><span class="num">jakson viikko '+c.week+'/'+c.len+
+            (c.deload?' · kevennys':c.ramp?' · '+(st.maxSets)+' sarjaa':'')+'</span></div>';
+        })()+
+        '<button class="btn wide ghost" data-newcycle="1" style="margin-top:11px">Aloita uusi jakso</button>'+
+        '<p style="font-size:12.5px;color:var(--dim);margin:10px 0 0">Liikekohtaiset poikkeukset — oma haarukka '+
+          'tai viimeisen sarjan maksimi pois — säädetään Ohjelmat-välilehdellä.</p>'
       : '<p style="font-size:13.5px;color:var(--dim);margin:10px 0 0">Ohjelma pysyy sellaisena kuin sen asetat. '+
         'Paino nousee kun kaikki sarjat yltävät toistotavoitteeseen.</p>'+
         '<div class="grid3" style="margin-top:11px">'+
@@ -1423,6 +1629,19 @@ function openSheet(){
             '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-x="rmin" value="'+x.rmin+'"></label>'+
             '<label class="f"><span class="eyebrow">Toistot enint.</span><input inputmode="numeric" data-x="rmax" value="'+x.rmax+'"></label>'+
           '</div>'+
+          (isAuto()
+            ? '<div class="autobox">'+
+                '<div class="eyebrow">Automaattitila</div>'+
+                '<div class="grid2">'+
+                  '<label class="f"><span class="eyebrow">Oma haarukka väh.</span>'+
+                    '<input inputmode="numeric" data-x="autoRmin" placeholder="'+S.settings.autoRmin+'" value="'+(x.autoRmin||'')+'"></label>'+
+                  '<label class="f"><span class="eyebrow">Oma haarukka enint.</span>'+
+                    '<input inputmode="numeric" data-x="autoRmax" placeholder="'+S.settings.autoRmax+'" value="'+(x.autoRmax||'')+'"></label>'+
+                '</div>'+
+                '<label class="chkrow"><input type="checkbox" data-xc="amrap"'+(x.noAmrap?'':' checked')+'>'+
+                  '<span>Viimeinen sarja maksimiin</span></label>'+
+              '</div>'
+            : '')+
         '</div>'));
     });
     body.appendChild(el('<div class="grid2">'+
@@ -1514,8 +1733,8 @@ document.addEventListener("click", async e => {
     if(x.sets.every(q=>q.ok)) route.openEx = null;
     save(); render(); return;
   }
-  if(d.addset!==undefined){ const x=S.active.ex[+d.addset]; const last=x.sets[x.sets.length-1]; x.sets.push({w:last?last.w:0, r:last?last.r:x.rmax, ok:false}); save(); render(); return; }
-  if(d.delset!==undefined){ const x=S.active.ex[+d.delset]; for(let i=x.sets.length-1;i>=0;i--){ if(!x.sets[i].ok){ x.sets.splice(i,1); break; } } save(); render(); return; }
+  if(d.addset!==undefined){ const x=S.active.ex[+d.addset]; const last=x.sets[x.sets.length-1]; x.sets.push({w:last?last.w:0, r:last?last.r:x.rmax, ok:false}); reAmrap(x); save(); render(); return; }
+  if(d.delset!==undefined){ const x=S.active.ex[+d.delset]; for(let i=x.sets.length-1;i>=0;i--){ if(!x.sets[i].ok){ x.sets.splice(i,1); break; } } reAmrap(x); save(); render(); return; }
   if(d.skip!==undefined){ S.active.ex[+d.skip].skip=true; route.openEx=null; save(); render(); return; }
   if(d.unskip!==undefined){ S.active.ex[+d.unskip].skip=false; save(); render(); return; }
   if(d.finish){
@@ -1545,12 +1764,17 @@ document.addEventListener("click", async e => {
     if(st.target === "workout"){
       if(item && S.active){
         const step = STEPS[item.e] || 2.5;
-        const sg = suggest({name:item.n, equip:item.e, step:step, rmax:8, w:0});
-        S.active.ex.push({
-          id: uid("x"), name: item.n, equip: item.e, step: step,
-          rmin: 8, rmax: 8, target: 3, up: sg.up, skip: false,
-          sets: Array.from({length:3}, () => ({w: sg.w, r: 8, ok: false}))
-        });
+        if(isAuto()){
+          S.active.ex.push(autoEntry({name:item.n, equip:item.e, step:step, sets:S.settings.sets||3, w:0}));
+        } else {
+          const st = S.settings;
+          const sg = suggest({name:item.n, equip:item.e, step:step, rmax:st.rmax, w:0});
+          S.active.ex.push({
+            id: uid("x"), name: item.n, equip: item.e, step: step,
+            rmin: st.rmin, rmax: st.rmax, target: st.sets, up: sg.up, skip: false,
+            sets: Array.from({length:st.sets}, () => ({w: sg.w, r: st.rmax, ok: false}))
+          });
+        }
         route.openEx = S.active.ex.length - 1;
         save();
       }
@@ -1582,7 +1806,23 @@ document.addEventListener("click", async e => {
   if(d.dsync){ driveSync(false); return; }
   if(d.drestore){ driveRestore(); return; }
   if(d.ddisconnect){ driveDisconnect(); return; }
-  if(d.mode){ S.settings.mode = d.mode; save(); render(); return; }
+  if(d.mode){
+    S.settings.mode = d.mode;
+    if(d.mode === "automaattinen" && !S.settings.cycleStart){
+      S.settings.cycleStart = new Date().toISOString(); S.settings.skipDeload = null;
+    }
+    save(); render(); return;
+  }
+  if(d.newcycle){
+    if(!await ask("Aloitetaanko uusi jakso tästä päivästä? Viikkolaskuri nollautuu.","Aloita")) return;
+    S.settings.cycleStart = new Date().toISOString(); S.settings.skipDeload = null;
+    save(); render(); toast("Uusi jakso aloitettu."); return;
+  }
+  if(d.skipdeload){
+    const c = cycleInfo(); if(c){ S.settings.skipDeload = c.idx; save(); render(); toast("Kevennys ohitettu tältä jaksolta."); }
+    return;
+  }
+  if(d.undodeload){ S.settings.skipDeload = null; save(); render(); return; }
   if(d.tog){ S.settings[d.tog] = !S.settings[d.tog]; save(); render(); return; }
   if(d.ctable){ route.ctable = !route.ctable; render(); return; }
   if(d.ser){
@@ -1656,12 +1896,16 @@ document.addEventListener("change", async e => {
     if(!await ask('Tuodaanko "'+f.name+'"? Se korvaa kaiken nykyisen datan.',"Tuo")) return;
     const fr = new FileReader(); fr.onload = () => applyImport(fr.result); fr.readAsText(f); return;
   }
+  if(inp.dataset && inp.dataset.dw){
+    S.settings.deloadWeeks = parseInt(inp.value, 10) || 0; save(); render(); return;
+  }
   if(inp.dataset && inp.dataset.set){
     let v = parseInt(String(inp.value).replace(/[^0-9]/g, ""), 10);
     if(isNaN(v) || v < 1) v = 1;
     if(v > 50) v = 50;
     S.settings[inp.dataset.set] = v;
     if(S.settings.rmax < S.settings.rmin) S.settings.rmax = S.settings.rmin;
+    if(S.settings.autoRmax < S.settings.autoRmin) S.settings.autoRmax = S.settings.autoRmin;
     save(); render();
     return;
   }
@@ -1685,9 +1929,16 @@ function readProgForm(p){
       if(k==="name" || k==="equip") x[k] = i.value;
       else { let v = parseFloat(String(i.value).replace(",",".")); x[k] = isNaN(v)?0:v; }
     });
+    box.querySelectorAll("[data-xc]").forEach(i => {
+      if(i.dataset.xc === "amrap") x.noAmrap = !i.checked;
+    });
     if(!x.step) x.step = STEPS[x.equip] || 2.5;
     x.sets = Math.max(1, Math.round(x.sets));
     x.rmin = Math.max(1, Math.round(x.rmin)); x.rmax = Math.max(x.rmin, Math.round(x.rmax));
+    /* Tyhjä oma haarukka = käytetään yleistä. Molemmat tai ei kumpaakaan. */
+    x.autoRmin = Math.round(x.autoRmin || 0); x.autoRmax = Math.round(x.autoRmax || 0);
+    if(!x.autoRmin || !x.autoRmax){ delete x.autoRmin; delete x.autoRmax; }
+    else if(x.autoRmax < x.autoRmin) x.autoRmax = x.autoRmin;
   });
 }
 
