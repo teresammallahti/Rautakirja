@@ -47,6 +47,17 @@ välimuistista.
 - Kaikki käyttäjän syöttämä teksti escapetaan ennen sivulle kirjoittamista.
 - Palvelutyöntekijä tallentaa välimuistiin vain onnistuneet vastaukset, jottei virhesivu jää tarjolle.
 
+## Testit
+
+```
+npm install playwright
+node tests/run.js
+```
+
+Käynnistää paikallisen palvelimen ja ajaa koko käyttöpolun oikeassa selaimessa:
+painoruudukko, ennätyslogiikka, kehitysindeksit, kuvaaja ja asetukset.
+Aja aina ennen kuin muutokset viedään GitHubiin.
+
 ## Liikepankki
 
 Sovelluksen liikkeet ovat `app.js`:ssä `LIB`-vakiona, ryhmiteltynä lihasryhmittäin.

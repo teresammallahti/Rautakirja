@@ -169,6 +169,47 @@ label.f > span{display:block;margin-bottom:4px}
 .setrow.ok .chk{background:var(--good);border-color:transparent;color:#fff}
 .rowtools{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 
+/* ---- kehityskuvaaja ---- */
+:root{ --ser-strength:#C4441F; --ser-volume:#1F6FC4; }
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){ --ser-strength:#E85E33; --ser-volume:#4694D6; }
+}
+:root[data-theme="dark"]{ --ser-strength:#E85E33; --ser-volume:#4694D6; }
+
+.chart{width:100%;height:auto;display:block;margin:4px 0 2px;touch-action:pan-y}
+.g-line{stroke:var(--line);stroke-width:1}
+.g-zero{stroke:var(--line-2);stroke-width:1.5;stroke-dasharray:3 3}
+.g-lab{fill:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:9px}
+.g-cross{stroke:var(--line-2);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 2px;font-size:13px;color:var(--dim)}
+.legend .lg{
+  display:inline-flex;align-items:center;gap:6px;
+  background:none;border:0;padding:2px 0;font:inherit;color:inherit;cursor:pointer;
+}
+.legend .lg.off{opacity:.4}
+.legend .lg.off i{background:var(--line-2)!important}
+.legend .lg.off b{color:var(--dim)}
+.legend i{width:11px;height:11px;border-radius:3px;flex:none}
+.legend b{color:var(--text)}
+.tip{
+  display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;
+  background:var(--surface2);border:1px solid var(--line);border-radius:8px;
+  padding:7px 10px;font-size:13px;color:var(--dim);margin-top:4px;
+}
+.tip b{color:var(--text);font-family:Oswald,sans-serif;letter-spacing:.04em}
+.tip span{display:inline-flex;align-items:center;gap:6px}
+.tip i{width:9px;height:9px;border-radius:2px;flex:none}
+.tip .num{color:var(--text)}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+table.dt th{
+  text-align:left;font-family:Oswald,sans-serif;font-weight:500;font-size:10.5px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+  padding:5px 8px 5px 0;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+table.dt td{padding:6px 8px 6px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+table.dt td.num{text-align:right;padding-right:0}
+table.dt th:last-child{text-align:right;padding-right:0}
+
 /* ---- jaettava tiivistelmä ---- */
 .share-text{
   font-family:"IBM Plex Mono",ui-monospace,monospace;

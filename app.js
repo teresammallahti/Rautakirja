@@ -9,6 +9,7 @@ const I = {
   check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg>',
   chev:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   back:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  cog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.6 1.6 0 0 0 15 19.4a1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.09A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.09A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.09A1.6 1.6 0 0 0 15 4.6a1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9v0a1.6 1.6 0 0 0 1.47.97H21a2 2 0 1 1 0 4h-.09a1.6 1.6 0 0 0-1.47.97z"/></svg>',
   x:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
 };
 
@@ -61,6 +62,23 @@ function snapDumbbell(w){
   return Math.max(10, Math.floor(w / 2.5) * 2.5);
 }
 
+/* Harjoitusmallin asetukset. Staattinen = nykyinen käytös, käyttäjä
+   säätää haarukat itse. Automaattinen = kaksoisprogressio, kahden kerran
+   sääntö, sarjamäärän kasvatus ja deload-ehdotus. */
+function defaultSettings(){
+  return {
+    mode: "staattinen",     /* "staattinen" | "automaattinen" */
+    rmin: 8, rmax: 8,       /* staattisen tilan oletushaarukka */
+    sets: 3,
+    autoRmin: 6, autoRmax: 10,
+    twoSession: true,       /* paino nousee vasta toisesta peräkkäisestä onnistumisesta */
+    addSets: true,          /* sarjamäärä 3 -> 4 ajan myötä */
+    maxSets: 4,
+    amrap: true,            /* viimeinen sarja maksimiin (tekniseen asti) */
+    deloadWeeks: 6          /* 0 = ei deload-ehdotusta */
+  };
+}
+
 function seedPrograms(){
   return [
     {id:"p_jalka", name:"Jalkapäivä", est:"45–55 min", ex:[
@@ -84,11 +102,12 @@ function seedPrograms(){
 
 function seed(){
   return {
-    v:5,
+    v:6,
     programs: seedPrograms(),
     sessions:[],
     active:null,
-    meta:{lastBackup:null, backupCount:0}
+    meta:{lastBackup:null, backupCount:0},
+    settings: defaultSettings()
   };
 }
 
@@ -96,6 +115,7 @@ let S;
 try{ const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : seed(); }
 catch(e){ S = seed(); }
 if(!S || !S.programs) S = seed();
+if(!S.settings) S.settings = defaultSettings();
 
 /* v1 → v2: liikepankki käyttöön + korjatut oletusohjelmat.
    Ohjelmat päivitetään vain jos treenejä ei ole vielä kirjattu. */
@@ -125,6 +145,12 @@ if(S.v < 5){
     if(x.equip === "käsipaino"){ x.w = snapDumbbell(x.w); x.step = 1; }
   }));
   S.v = 5; save();
+}
+
+/* v5 → v6: harjoitusmallin asetukset. */
+if(S.v < 6){
+  S.settings = Object.assign(defaultSettings(), S.settings || {});
+  S.v = 6; save();
 }
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Tallennus ei onnistunut — muisti täynnä?"); } }
@@ -617,6 +643,260 @@ function shareCard(sess){
   return c;
 }
 
+/* ============ kehitysindeksit ============
+
+   VOIMAINDEKSI: jokaiselle liikkeelle lasketaan arvioitu maksimi (e1RM),
+   muunnetaan prosenttimuutokseksi sen OMAN lähtötason suhteen, ja näistä
+   otetaan keskiarvo. Alkaa nollasta.
+   Miksi prosenttimuutos eikä kilojen summa: muuten maastaveto 140 kg jyräisi
+   hauiskäännön 32,5 kg, ja uuden liikkeen lisääminen hyppäyttäisi lukua
+   ilman että mikään on parantunut.
+   e1RM-kaavan iso absoluuttinen virhe ei haittaa, koska se on systemaattinen
+   ja supistuu pois kun mitataan muutosta samalla kaavalla.
+
+   TYÖMÄÄRÄINDEKSI: viikon kokonaisvolyymi (kg) suhteessa ensimmäiseen
+   treeniviikkoon. Vain viikot joilla on treenattu — muuten tauko näkyisi
+   sadan prosentin pudotuksena.
+
+   Molemmat viikkotasolla, koska treenipäivien satunnainen sijoittelu tekisi
+   treenikohtaisesta käyrästä sahaavan. */
+
+function weekKey(iso){
+  const d = new Date(iso);
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7;            /* ma=1 … su=7 */
+  t.setUTCDate(t.getUTCDate() + 4 - day);    /* ISO: torstai ratkaisee vuoden */
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const wk = Math.ceil(((t - y0) / 86400000 + 1) / 7);
+  return t.getUTCFullYear() + "-" + String(wk).padStart(2, "0");
+}
+
+function weekLabel(key){
+  return "vk " + String(parseInt(key.slice(5), 10));
+}
+
+/* Paras e1RM liikkeelle yhdessä treenissä. */
+function bestE1(x){
+  return x.sets.reduce((a, s) => Math.max(a, e1rm(s.w || 0, s.r || 0)), 0);
+}
+
+function indexSeries(){
+  if(!S.sessions.length) return [];
+  const sorted = [...S.sessions].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  /* viikko -> { vol, best: {liike: e1RM} } */
+  const weeks = new Map();
+  sorted.forEach(sess => {
+    const k = weekKey(sess.date);
+    if(!weeks.has(k)) weeks.set(k, {key:k, vol:0, best:{}});
+    const w = weeks.get(k);
+    w.vol += volume(sess);
+    sess.ex.forEach(x => {
+      const e = bestE1(x);
+      if(e > 0 && (!w.best[x.name] || e > w.best[x.name])) w.best[x.name] = e;
+    });
+  });
+
+  const keys = [...weeks.keys()].sort();
+  const base = {};        /* liike -> lähtötaso */
+  const carry = {};       /* liike -> viimeisin tunnettu taso */
+  let vol0 = 0;
+  const out = [];
+
+  keys.forEach((k, i) => {
+    const w = weeks.get(k);
+    Object.keys(w.best).forEach(n => {
+      if(!base[n]) base[n] = w.best[n];
+      carry[n] = w.best[n];
+    });
+    /* Liikkeet joita ei tehty tällä viikolla säilyttävät edellisen tasonsa,
+       jottei indeksi putoa pelkän ohjelmakierron takia. */
+    const names = Object.keys(base);
+    let sum = 0, n = 0;
+    names.forEach(nm => {
+      if(carry[nm] && base[nm] > 0){ sum += (carry[nm] / base[nm] - 1) * 100; n++; }
+    });
+    if(i === 0) vol0 = w.vol;
+    out.push({
+      key: k,
+      label: weekLabel(k),
+      strength: n ? sum / n : 0,
+      volume: vol0 > 0 ? (w.vol / vol0 - 1) * 100 : 0,
+      rawVol: w.vol,
+      lifts: n
+    });
+  });
+  return out;
+}
+
+/* ============ kehityskuvaaja ============
+   Kaksi sarjaa samalla akselilla, molemmat indeksoituna nollaan — siksi
+   kaksi eri suuruusluokan mittaria mahtuu yhteen kuvaajaan ilman että
+   tarvitaan kahta y-akselia.
+   Värit on validoitu värisokeuserottelun ja kontrastin osalta erikseen
+   vaalealle ja tummalle teemalle. */
+
+const SER = [
+  {k:"strength", name:"Voima",     light:"#C4441F", dark:"#E85E33"},
+  {k:"volume",   name:"Työmäärä",  light:"#1F6FC4", dark:"#4694D6"}
+];
+const serColor = s => 'var(--ser-' + s.k + ')';
+
+/* Akselin lukujen pyöristys siisteihin askeliin (1, 2, 2,5, 5, 10 × 10^n). */
+function niceStep(raw){
+  const p = Math.pow(10, Math.floor(Math.log10(Math.abs(raw) || 1)));
+  const n = raw / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+const pct = v => (v >= 0 ? "+" : "−") + fmt(Math.round(Math.abs(v) * 10) / 10);
+const shown = () => SER.filter(se => !(route.hideSer && route.hideSer[se.k]));
+
+function chartSvg(pts){
+  const W = 320, H = 170, L = 34, R = 12, T = 12, B = 26;
+  const iw = W - L - R, ih = H - T - B;
+
+  const sc = chartScale(pts);
+  const lo = sc.lo, hi = sc.hi, step = sc.step;
+  const X = i => L + (pts.length === 1 ? iw / 2 : iw * i / (pts.length - 1));
+  const Y = v => T + ih * (1 - (v - lo) / (hi - lo));
+
+  /* Ruudukko: nolla korostettuna, muut hillittyinä. */
+  let grid = "";
+  for(let v = lo; v <= hi + 0.0001; v += step){
+    const y = Y(v);
+    grid += '<line x1="'+L+'" y1="'+y.toFixed(1)+'" x2="'+(W-R)+'" y2="'+y.toFixed(1)+'" class="g-line"/>';
+    grid += '<text x="'+(L-6)+'" y="'+(y+3.5).toFixed(1)+'" class="g-lab" text-anchor="end">'+
+            (Math.round(v*10)/10)+'</text>';
+  }
+  if(lo <= 0 && hi >= 0){
+    grid += '<line x1="'+L+'" y1="'+Y(0).toFixed(1)+'" x2="'+(W-R)+'" y2="'+Y(0).toFixed(1)+'" class="g-zero"/>';
+  }
+
+  let lines = "", dots = "";
+  shown().forEach(se => {
+    const d = pts.map((p, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(p[se.k]).toFixed(1)).join(" ");
+    lines += '<path d="'+d+'" fill="none" stroke="'+serColor(se)+'" stroke-width="2" '+
+             'stroke-linejoin="round" stroke-linecap="round"/>';
+    const last = pts[pts.length - 1];
+    /* Viimeinen piste saa merkin ja suoran arvomerkinnän — ei numeroa joka pisteeseen. */
+    dots += '<circle cx="'+X(pts.length-1).toFixed(1)+'" cy="'+Y(last[se.k]).toFixed(1)+'" r="4" '+
+            'fill="'+serColor(se)+'" stroke="var(--surface)" stroke-width="2"/>';
+  });
+
+  const first = pts[0].label, last = pts[pts.length - 1].label;
+  let xlab = '<text x="'+L+'" y="'+(H-8)+'" class="g-lab" text-anchor="start">'+esc(first)+'</text>';
+  if(pts.length > 1) xlab += '<text x="'+(W-R)+'" y="'+(H-8)+'" class="g-lab" text-anchor="end">'+esc(last)+'</text>';
+
+  /* Kosketusalueet: koko korkeuden levyiset kaistat, isommat kuin merkit. */
+  let hits = "";
+  pts.forEach((p, i) => {
+    const bw = pts.length === 1 ? iw : iw / (pts.length - 1);
+    hits += '<rect x="'+(X(i)-bw/2).toFixed(1)+'" y="'+T+'" width="'+bw.toFixed(1)+'" height="'+ih+'" '+
+            'fill="transparent" data-pt="'+i+'"/>';
+  });
+
+  return '<svg viewBox="0 0 '+W+' '+H+'" class="chart" id="devchart" role="img" '+
+         'aria-label="Kehitysindeksi viikoittain">'+
+         grid + lines + dots + xlab +
+         '<line id="cross" class="g-cross" x1="0" y1="'+T+'" x2="0" y2="'+(T+ih)+'" style="display:none"/>'+
+         '<circle id="cd0" r="5" style="display:none" stroke="var(--surface)" stroke-width="2"/>'+
+         '<circle id="cd1" r="5" style="display:none" stroke="var(--surface)" stroke-width="2"/>'+
+         hits + '</svg>';
+}
+
+/* Skaala lasketaan vain näkyvistä sarjoista, jotta yhden sarjan
+   piilottaminen levittää jäljelle jäävän koko korkeudelle. */
+function chartScale(pts){
+  const vis = shown();
+  let lo = 0, hi = 0;
+  pts.forEach(p => vis.forEach(se => { lo = Math.min(lo, p[se.k]); hi = Math.max(hi, p[se.k]); }));
+  const span = Math.max(hi - lo, 4);
+  const step = niceStep(span / 4);
+  lo = Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  if(hi - lo < step * 2) hi = lo + step * 2;
+  return {lo, hi, step};
+}
+
+function viewChart(){
+  const pts = indexSeries();
+  const c = el('<div class="card pad"></div>');
+
+  if(pts.length < 2){
+    c.innerHTML = '<div class="eyebrow">Kehitys</div>'+
+      '<div class="empty" style="padding:22px 6px">Kuvaaja piirtyy kun treenejä on vähintään kahdelta eri viikolta.</div>';
+    return c;
+  }
+
+  const last = pts[pts.length - 1];
+
+  c.innerHTML =
+    '<div class="eyebrow">Kehitys — indeksi, lähtötaso 0</div>'+
+    '<div class="legend">'+ SER.map(se => {
+        const off = route.hideSer && route.hideSer[se.k];
+        return '<button class="lg'+(off?' off':'')+'" data-ser="'+se.k+'" '+
+               'aria-pressed="'+(off?'false':'true')+'">'+
+               '<i style="background:'+serColor(se)+'"></i>'+se.name+
+               ' <b class="num">'+pct(last[se.k])+' %</b></button>';
+      }).join("") +
+    '</div>'+
+    chartSvg(pts)+
+    '<div class="tip" id="ctip" hidden></div>'+
+    '<button class="btn sm ghost" data-ctable="1" style="margin-top:10px">'+
+      (route.ctable ? "Piilota taulukko" : "Näytä taulukkona")+'</button>'+
+    (route.ctable
+      ? '<div style="overflow-x:auto;margin-top:10px"><table class="dt">'+
+        '<thead><tr><th>Viikko</th><th>Voima</th><th>Työmäärä</th><th>Volyymi</th></tr></thead><tbody>'+
+        pts.map(p => '<tr><td>'+esc(p.label)+'</td><td class="num">'+pct(p.strength)+' %</td>'+
+          '<td class="num">'+pct(p.volume)+' %</td><td class="num">'+fmt(Math.round(p.rawVol))+' kg</td></tr>').join("")+
+        '</tbody></table></div>'
+      : '')+
+    '<p style="font-size:12.5px;color:var(--dim);margin:11px 0 0">'+
+      'Voima = arvioidun maksimin keskimääräinen muutos liikkeittäin. '+
+      'Työmäärä = viikon kokonaisvolyymi suhteessa ensimmäiseen treeniviikkoon.</p>';
+
+  c._pts = pts;
+  return c;
+}
+
+/* Ristikohdistin ja arvolaatikko. */
+function chartHover(i){
+  const svg = document.getElementById("devchart");
+  const card = svg && svg.closest(".card");
+  const tip = document.getElementById("ctip");
+  if(!svg || !card || !card._pts || !tip) return;
+  const pts = card._pts;
+  if(i < 0 || i >= pts.length){ hideHover(); return; }
+
+  const W = 320, L = 34, R = 12, T = 12, B = 26, H = 170;
+  const iw = W - L - R, ih = H - T - B;
+  const sc = chartScale(pts);
+  const X = k => L + (pts.length === 1 ? iw / 2 : iw * k / (pts.length - 1));
+  const Y = v => T + ih * (1 - (v - sc.lo) / (sc.hi - sc.lo));
+
+  const cross = document.getElementById("cross");
+  cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i));
+  cross.style.display = "";
+  SER.forEach((se, n) => {
+    const d = document.getElementById("cd" + n);
+    if(route.hideSer && route.hideSer[se.k]){ d.style.display = "none"; return; }
+    d.setAttribute("cx", X(i)); d.setAttribute("cy", Y(pts[i][se.k]));
+    d.setAttribute("fill", serColor(se));
+    d.style.display = "";
+  });
+
+  const p = pts[i];
+  tip.innerHTML = '<b>'+esc(p.label)+'</b>' +
+    shown().map(se => '<span><i style="background:'+serColor(se)+'"></i>'+se.name+
+      ' <span class="num">'+pct(p[se.k])+' %</span></span>').join("");
+  tip.hidden = false;
+}
+function hideHover(){
+  const c = document.getElementById("cross"); if(c) c.style.display = "none";
+  ["cd0","cd1"].forEach(id => { const d = document.getElementById(id); if(d) d.style.display = "none"; });
+  const t = document.getElementById("ctip"); if(t) t.hidden = true;
+}
+
 /* ============ näkymä ============ */
 let route = {tab:"treeni", sheet:null};
 let installPrompt = null;
@@ -633,7 +913,7 @@ function render(){
 
 function renderBar(){
   const bar = document.getElementById("bar"), bp = document.getElementById("barprog");
-  const titles = {treeni: S.active ? S.active.name : "Rautakirja", historia:"Historia", ohjelmat:"Ohjelmat", data:"Data"};
+  const titles = {treeni: S.active ? S.active.name : "Rautakirja", historia:"Historia", ohjelmat:"Ohjelmat", data:"Asetukset"};
   bar.innerHTML = '<h1>'+esc(titles[route.tab])+'</h1>' + (route.tab==="treeni" && S.active ? '<span class="clock" id="clk">00:00</span>' : '');
   if(route.tab==="treeni" && S.active){
     const tot = S.active.ex.reduce((a,x)=> a + (x.skip?0:x.sets.length), 0);
@@ -648,7 +928,7 @@ function renderBar(){
 }
 
 function renderNav(){
-  const items = [["treeni",I.bar,"Treeni"],["historia",I.hist,"Historia"],["ohjelmat",I.prog,"Ohjelmat"],["data",I.data,"Data"]];
+  const items = [["treeni",I.bar,"Treeni"],["historia",I.hist,"Historia"],["ohjelmat",I.prog,"Ohjelmat"],["data",I.cog,"Asetukset"]];
   document.getElementById("nav").innerHTML = items.map(([k,ic,lab]) =>
     '<button class="navbtn'+(route.tab===k?" on":"")+'" data-tab="'+k+'">'+ic+
     (k==="treeni"&&S.active?'<i class="dot"></i>':'')+'<span>'+lab+'</span></button>').join("");
@@ -833,6 +1113,8 @@ function viewHistory(v){
       '<button class="btn '+(route.hsub==="liikkeet"?"primary":"")+'" data-hsub="liikkeet">Liikkeet</button>'+
     '</div>'));
 
+  if(route.hsub!=="liikkeet") wrap.appendChild(viewChart());
+
   if(route.hsub==="liikkeet"){
     const names = [...new Set(S.sessions.flatMap(s => s.ex.map(e=>e.name)))].sort((a,b)=>a.localeCompare(b,"fi"));
     if(!names.length){ wrap.appendChild(el('<div class="card"><div class="empty">Ei vielä dataa liikkeistä.</div></div>')); }
@@ -899,6 +1181,43 @@ function viewPrograms(v){
 function viewData(v){
   const wrap = el('<div class="stack"></div>');
   const since = S.sessions.length - (S.meta.backupCount||0);
+  const st = S.settings || defaultSettings();
+  const auto = st.mode === "automaattinen";
+
+  /* --- Harjoitusmalli --- */
+  const modeCard = el('<div class="card pad"></div>');
+  modeCard.innerHTML =
+    '<div class="eyebrow">Harjoitusmalli</div>'+
+    '<div class="grid2" style="margin:9px 0 4px">'+
+      '<button class="btn'+(auto?'':' primary')+'" data-mode="staattinen">Staattinen</button>'+
+      '<button class="btn'+(auto?' primary':'')+'" data-mode="automaattinen">Automaattinen</button>'+
+    '</div>'+
+    (auto
+      ? '<p style="font-size:13.5px;color:var(--dim);margin:10px 0 0">Appi säätää kuormaa puolestasi: '+
+        'toistohaarukka, painon nosto vasta kahdesta peräkkäisestä onnistumisesta, sarjamäärän kasvatus '+
+        'ja kevennysviikon ehdotus.</p>'+
+        '<div class="kv"><span>Toistohaarukka</span><span class="num">'+st.autoRmin+'–'+st.autoRmax+'</span></div>'+
+        '<div class="kv"><span>Kahden kerran sääntö</span>'+
+          '<button class="pill '+(st.twoSession?'good':'')+'" data-tog="twoSession">'+(st.twoSession?'Päällä':'Pois')+'</button></div>'+
+        '<div class="kv"><span>Sarjamäärä kasvaa '+st.sets+' → '+st.maxSets+'</span>'+
+          '<button class="pill '+(st.addSets?'good':'')+'" data-tog="addSets">'+(st.addSets?'Päällä':'Pois')+'</button></div>'+
+        '<div class="kv"><span>Viimeinen sarja maksimiin</span>'+
+          '<button class="pill '+(st.amrap?'good':'')+'" data-tog="amrap">'+(st.amrap?'Päällä':'Pois')+'</button></div>'+
+        '<div class="kv"><span>Kevennysviikko</span><span class="num">'+
+          (st.deloadWeeks ? st.deloadWeeks+' vk välein' : 'ei käytössä')+'</span></div>'+
+        '<div class="hint" style="margin:12px 0 0">Automatiikan moottori on vielä rakenteilla. '+
+          'Asetukset tallentuvat jo nyt, mutta treeni käyttää toistaiseksi staattista kaavaa.</div>'
+      : '<p style="font-size:13.5px;color:var(--dim);margin:10px 0 0">Ohjelma pysyy sellaisena kuin sen asetat. '+
+        'Paino nousee kun kaikki sarjat yltävät toistotavoitteeseen.</p>'+
+        '<div class="grid3" style="margin-top:11px">'+
+          '<label class="f"><span class="eyebrow">Sarjat</span><input inputmode="numeric" data-set="sets" value="'+st.sets+'"></label>'+
+          '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-set="rmin" value="'+st.rmin+'"></label>'+
+          '<label class="f"><span class="eyebrow">Toistot enint.</span><input inputmode="numeric" data-set="rmax" value="'+st.rmax+'"></label>'+
+        '</div>'+
+        '<p style="font-size:12.5px;color:var(--dim);margin:9px 0 11px">Nämä ovat uusien liikkeiden oletukset. '+
+          'Yksittäisen liikkeen arvot muutat Ohjelmat-välilehdellä.</p>'+
+        '<button class="btn wide" data-applyall="1">Aseta nämä kaikkiin liikkeisiin</button>');
+  wrap.appendChild(modeCard);
 
   /* --- Google Drive --- */
   const dConn = !!S.meta.drive;
@@ -1263,6 +1582,26 @@ document.addEventListener("click", async e => {
   if(d.dsync){ driveSync(false); return; }
   if(d.drestore){ driveRestore(); return; }
   if(d.ddisconnect){ driveDisconnect(); return; }
+  if(d.mode){ S.settings.mode = d.mode; save(); render(); return; }
+  if(d.tog){ S.settings[d.tog] = !S.settings[d.tog]; save(); render(); return; }
+  if(d.ctable){ route.ctable = !route.ctable; render(); return; }
+  if(d.ser){
+    route.hideSer = route.hideSer || {};
+    const off = !route.hideSer[d.ser];
+    if(off && SER.filter(x => !(route.hideSer[x.k]) && x.k !== d.ser).length === 0){
+      toast("Ainakin yksi sarja on pidettävä näkyvissä.");
+      return;
+    }
+    route.hideSer[d.ser] = off; render(); return;
+  }
+  if(d.applyall){
+    const st = S.settings;
+    if(!await ask("Asetetaanko "+st.sets+" × "+(st.rmin===st.rmax?st.rmin:st.rmin+"–"+st.rmax)+
+                  " kaikkiin liikkeisiin kaikissa ohjelmissa?","Aseta")) return;
+    S.programs.forEach(p => p.ex.forEach(x => { x.sets = st.sets; x.rmin = st.rmin; x.rmax = st.rmax; }));
+    save(); render(); toast("Asetettu kaikkiin liikkeisiin.");
+    return;
+  }
   if(d.backup){ doBackup(); return; }
   if(d.install){
     const p = installPrompt; installPrompt = null; render();
@@ -1293,6 +1632,19 @@ document.addEventListener("click", e => {
   save();
 });
 
+/* kuvaajan ristikohdistin */
+document.addEventListener("pointermove", e => {
+  const hit = e.target.closest && e.target.closest("[data-pt]");
+  if(hit) chartHover(+hit.dataset.pt);
+});
+document.addEventListener("pointerdown", e => {
+  const hit = e.target.closest && e.target.closest("[data-pt]");
+  if(hit) chartHover(+hit.dataset.pt);
+});
+document.addEventListener("pointerleave", e => {
+  if(e.target && e.target.id === "devchart") hideHover();
+}, true);
+
 /* liikepankin haku */
 document.addEventListener("input", e => { if(e.target.id==="pq") drawPicker(e.target.value); });
 
@@ -1303,6 +1655,15 @@ document.addEventListener("change", async e => {
     const f = inp.files[0]; inp.value = "";
     if(!await ask('Tuodaanko "'+f.name+'"? Se korvaa kaiken nykyisen datan.',"Tuo")) return;
     const fr = new FileReader(); fr.onload = () => applyImport(fr.result); fr.readAsText(f); return;
+  }
+  if(inp.dataset && inp.dataset.set){
+    let v = parseInt(String(inp.value).replace(/[^0-9]/g, ""), 10);
+    if(isNaN(v) || v < 1) v = 1;
+    if(v > 50) v = 50;
+    S.settings[inp.dataset.set] = v;
+    if(S.settings.rmax < S.settings.rmin) S.settings.rmax = S.settings.rmin;
+    save(); render();
+    return;
   }
   const row = inp.closest && inp.closest(".setrow");
   if(row && inp.dataset.f){
