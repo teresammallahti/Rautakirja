@@ -1369,6 +1369,37 @@ function viewPrograms(v){
   v.appendChild(wrap);
 }
 
+/* Lyhyt selitys valitusta harjoitusmallista Asetukset-välilehdelle.
+   Teksti seuraa asetuksia, jotta se ei lupaa mitään mitä moottori ei tee. */
+function modeInfo(st, auto){
+  const li = t => '<li>'+t+'</li>';
+  let rows;
+  if(!auto){
+    rows = [
+      'Sarjat ja toistot pysyvät samoina, kunnes muutat niitä itse.',
+      'Paino nousee yhden askeleen, kun kaikki sarjat yltävät toistotavoitteeseen.',
+      'Ei kevennysviikkoja eikä automaattista painon laskua.',
+      '<b>Sopii, kun</b> haluat seurata valmista ohjelmaa sellaisenaan.'
+    ];
+  } else {
+    const L = st.deloadWeeks;
+    rows = [
+      'Jokaisella liikkeellä on toistohaarukka (oletus '+st.autoRmin+'–'+st.autoRmax+'). '+
+        'Paino pysyy, kunnes toistot nousevat haarukan yläpäähän.',
+      'Paino nousee, kun kaikki sarjat yltävät yläpäähän '+
+        (st.twoSession ? 'kahdella peräkkäisellä kerralla.' : '.')+
+        ' Sen jälkeen toistot laskevat ja alkavat taas nousta.',
+      st.amrap ? 'Viimeinen sarja tehdään maksimiin (<b>MAX</b>). Jos toistoja tulee 3 yli ylärajan, paino nousee heti.' : '',
+      L ? L+' viikon jaksossa '+(st.addSets ? 'loppupuolelle tulee yksi sarja lisää ja ' : '')+
+          'viimeinen viikko on kevennys (puolet sarjoista, sama paino).' : '',
+      'Jos jäät kahdesti peräkkäin haarukan alle, paino laskee askeleen.',
+      '<b>Sopii, kun</b> haluat, että appi päättää painot ja sarjat puolestasi.'
+    ].filter(Boolean);
+  }
+  return '<div class="infobox"><div class="eyebrow">'+(auto ? 'Automaattinen malli' : 'Staattinen malli')+'</div>'+
+         '<ul>'+rows.map(li).join('')+'</ul></div>';
+}
+
 /* ============ DATA ============ */
 function viewData(v){
   const wrap = el('<div class="stack"></div>');
@@ -1385,9 +1416,7 @@ function viewData(v){
       '<button class="btn'+(auto?' primary':'')+'" data-mode="automaattinen">Automaattinen</button>'+
     '</div>'+
     (auto
-      ? '<p style="font-size:13.5px;color:var(--dim);margin:10px 0 0">Appi säätää kuormaa puolestasi: '+
-        'toistohaarukka, painon nosto vasta kahdesta peräkkäisestä onnistumisesta, sarjamäärän kasvatus '+
-        'ja kevennysviikon ehdotus.</p>'+
+      ? modeInfo(st, true)+
         '<div class="grid2" style="margin-top:11px">'+
           '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-set="autoRmin" value="'+st.autoRmin+'"></label>'+
           '<label class="f"><span class="eyebrow">Toistot enint.</span><input inputmode="numeric" data-set="autoRmax" value="'+st.autoRmax+'"></label>'+
@@ -1413,8 +1442,7 @@ function viewData(v){
         '<button class="btn wide ghost" data-newcycle="1" style="margin-top:11px">Aloita uusi jakso</button>'+
         '<p style="font-size:12.5px;color:var(--dim);margin:10px 0 0">Liikekohtaiset poikkeukset — oma haarukka '+
           'tai viimeisen sarjan maksimi pois — säädetään Ohjelmat-välilehdellä.</p>'
-      : '<p style="font-size:13.5px;color:var(--dim);margin:10px 0 0">Ohjelma pysyy sellaisena kuin sen asetat. '+
-        'Paino nousee kun kaikki sarjat yltävät toistotavoitteeseen.</p>'+
+      : modeInfo(st, false)+
         '<div class="grid3" style="margin-top:11px">'+
           '<label class="f"><span class="eyebrow">Sarjat</span><input inputmode="numeric" data-set="sets" value="'+st.sets+'"></label>'+
           '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-set="rmin" value="'+st.rmin+'"></label>'+
