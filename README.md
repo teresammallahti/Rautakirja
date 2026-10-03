@@ -64,5 +64,7 @@ Sovelluksen liikkeet ovat `app.js`:ssä `LIB`-vakiona, ryhmiteltynä lihasryhmit
 Ensimmäinen ryhmä on alkulämmittely: kesto minuutteina ja muistilista, jota voi muokata
 ohjelman muokkauksessa. Lämmittelyt eivät kuulu volyymiin, ennätyksiin eivätkä indekseihin.
 Pitoliikkeet (`unit: "s"`, esim. tangosta riippuminen ja lankku) kirjataan sekunteina.
+Riskialttiilla liikkeillä (`sf`-tunniste, tekstit `SAFETY`-taulussa) on turvahuomio, joka näkyy
+treenissä ja korostuu maksimisarjan edellä.
 Muokattava lähdeaineisto on projektikansion `Liikepankki.md`; jos sitä muuttaa, `LIB` on
 generoitava uudelleen.

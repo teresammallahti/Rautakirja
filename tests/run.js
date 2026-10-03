@@ -346,6 +346,65 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(r !== 's,30,45' || !/Sekunnit väh/.test(lbl) || back !== ',8,8') throw new Error(r + ' | ' + back); });
   await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
 
+  group('Liikepankki, turvahuomiot ja lihasryhmat');
+  await p.evaluate(() => { S.sessions = []; S.active = null; S.settings = defaultSettings(); save(); });
+  await p.reload({waitUntil:'load'}); await p.waitForTimeout(350);
+  await T('takakyykky liikepankissa etureisissa, ei tuplanimia', async () => {
+    const r = await p.evaluate(() => { const all = LIB.flatMap(g => g.items.map(i => i.n));
+      return [MG['Takakyykky'], all.length, new Set(all).size]; });
+    if(r[0] !== 'Etureisi' || r[1] !== r[2] || r[1] < 130) throw new Error(JSON.stringify(r)); });
+  await T('turvahuomio kyykyssa, penkissa, pystyssa ja maastavedossa', async () => {
+    const r = await p.evaluate(() => ['Takakyykky','Penkkipunnerrus tangolla','Pystypunnerrus tangolla','Maastaveto','Etukyykky']
+      .map(n => /raudat|avust|tekniikka/.test(SAFE[n] || '')));
+    if(r.some(v => !v)) throw new Error(r.join()); });
+  await T('jokainen sf-tunniste loytyy SAFETY-taulusta', async () => {
+    const bad = await p.evaluate(() => LIB.flatMap(g => g.items).filter(i => i.sf && !SAFETY[i.sf]).map(i => i.n));
+    if(bad.length) throw new Error(bad.join()); });
+  await p.locator('[data-start="'+await p.evaluate(() => S.programs[1].id)+'"]').click(); await p.waitForTimeout(350);
+  await T('penkissa turvahuomio treenissa, hauiksessa ei', async () => {
+    const pen = await p.evaluate(() => S.active.ex.findIndex(x => x.name === 'Penkkipunnerrus tangolla'));
+    if(!/active/.test(await p.locator('.ex').nth(pen).getAttribute('class'))){ await p.locator('.ex-head').nth(pen).click(); await p.waitForTimeout(200); }
+    const t = await p.locator('.ex').nth(pen).locator('.hint.safe').textContent();
+    if(!/Turvallisuus/.test(t) || !/turvaraudat/.test(t)) throw new Error(t);
+    const hi = await p.evaluate(() => S.active.ex.findIndex(x => /Hauiskääntö/.test(x.name)));
+    await p.locator('.ex-head').nth(hi).click(); await p.waitForTimeout(200);
+    if(await p.locator('.ex').nth(hi).locator('.hint.safe').count()) throw new Error('hauiksessa turvahuomio'); });
+  await p.locator('[data-cancel]').click(); await p.waitForTimeout(150); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(250);
+  await p.evaluate(() => { S.settings.mode = 'automaattinen'; S.settings.cycleStart = new Date().toISOString(); save(); });
+  await p.locator('[data-start="p_jalka"]').click(); await p.waitForTimeout(350);
+  await T('MAX-sarjan kanssa korostettu "Ennen maksimia" (takakyykky)', async () => {
+    await p.evaluate(() => { S.active.ex.unshift(makeEntry({name:'Takakyykky', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:60})); save(); render(); });
+    await p.waitForTimeout(200);
+    const j = await p.evaluate(() => S.active.ex.findIndex(x => SAFE[x.name] && x.amrap));
+    await p.locator('.ex-head').nth(j).click(); await p.waitForTimeout(200);
+    const t = await p.locator('.ex').nth(j).locator('.hint.safe.hot').textContent();
+    if(!/Ennen maksimia/.test(t)) throw new Error(t); });
+  await p.locator('[data-cancel]').click(); await p.waitForTimeout(150); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(250);
+  await p.evaluate(() => {
+    S.settings.mode = 'staattinen';
+    const mk = (d, w1, w2) => ({id:'g'+d, programId:'t', name:'T', date:new Date(2026,2,d).toISOString(), startedAt:0, finishedAt:1, ex:[
+      {name:'Penkkipunnerrus tangolla', equip:'tanko', rmax:8, target:1, sets:[{w:w1, r:8, ok:true}]},
+      {name:'Hauiskääntö vinotangolla', equip:'tanko', rmax:8, target:1, sets:[{w:w2, r:8, ok:true}]}]});
+    S.sessions = [mk(2, 100, 30), mk(9, 110, 30), mk(16, 110, 33)];
+    save(); });
+  await T('lihasryhmaindeksi: Rinta +10 %, Hauis vasta kolmannella viikolla', async () => {
+    const r = await p.evaluate(() => [indexSeries('Rinta').map(x => Math.round(x.strength)).join('/'),
+                                      indexSeries('Hauis').map(x => Math.round(x.strength)).join('/'),
+                                      chartGroups().join()]);
+    if(r[0] !== '0/10/10' || r[1] !== '0/0/10' || r[2] !== 'Rinta,Hauis') throw new Error(JSON.stringify(r)); });
+  await T('lihasryhman valinta kuvaajassa', async () => {
+    await p.locator('[data-tab="historia"]').click(); await p.waitForTimeout(250);
+    await p.locator('[data-hsub="treenit"]').click(); await p.waitForTimeout(250);
+    await p.locator('select[data-mg]').selectOption('Hauis'); await p.waitForTimeout(250);
+    const t = await p.textContent('#view');
+    if(!/Hauis:/.test(t) || !/\+10 %/.test(t)) throw new Error(t.slice(0, 300));
+    await p.locator('select[data-mg]').selectOption(''); await p.waitForTimeout(200); });
+  await T('liikkeen tiedoissa turvahuomio', async () => {
+    await p.locator('[data-hsub="liikkeet"]').click(); await p.waitForTimeout(250);
+    await p.locator('[data-exname="Penkkipunnerrus tangolla"]').click(); await p.waitForTimeout(300);
+    const t = await p.textContent('#sheetbg'); if(!/Turvallisuus/.test(t)) throw new Error(t.slice(0, 200));
+    await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

@@ -42,20 +42,48 @@ const LIB = [
     {n:"Kuminauhalämmittely olkapäille",e:"lämmittely",warm:1,min:4,list:["Kuminauhan erotus (pull-apart) 15","Face pull kuminauhalla 15","Ulkokierto kuminauhalla 10 / puoli","Lapatukipunnerrus 10"]},
     {n:"Nousevat lämmittelysarjat",e:"lämmittely",warm:1,min:5,list:["Ensimmäiseen isoon liikkeeseen","Tyhjä tanko × 10","Noin 40 % työpainosta × 5","Noin 60 % × 5","Noin 80 % × 3","Ei uuvuteta — lyhyt tauko ja työsarjoihin"]}
   ]},
-  {g:"Rinta", items:[{n:"Penkkipunnerrus tangolla",e:"tanko"}, {n:"Vinopenkkipunnerrus tangolla",e:"tanko"}, {n:"Penkkipunnerrus käsipainoilla",e:"käsipaino"}, {n:"Vinopenkkipunnerrus käsipainoilla",e:"käsipaino"}, {n:"Vipunosto penkillä käsipainoilla",e:"käsipaino"}, {n:"Ristikkäistalja ylhäältä",e:"talja"}, {n:"Ristikkäistalja keskeltä",e:"talja"}, {n:"Ristikkäistalja alhaalta",e:"talja"}, {n:"Punnerrus",e:"kehonpaino"}]},
-  {g:"Selkä — leveys (vetoliikkeet ylhäältä)", items:[{n:"Ylätalja myötäotteella",e:"talja"}, {n:"Pullover taljassa suoralla kahvalla",e:"talja"}, {n:"Ylätalja vastaotteella",e:"talja"}, {n:"Ylätalja kapealla kolmiokahvalla",e:"talja"}, {n:"Ylätalja yhdellä kädellä",e:"talja"}, {n:"Leuanveto myötäotteella",e:"kehonpaino"}, {n:"Leuanveto vastaotteella",e:"kehonpaino"}, {n:"Vetoliike laitteessa",e:"laite"}]},
-  {g:"Selkä — paksuus (soutuliikkeet)", items:[{n:"Kulmasoutu tangolla",e:"tanko"}, {n:"Käsipainosoutu yhdellä kädellä",e:"käsipaino"}, {n:"Alatalja soutu, kolmiokahva",e:"talja"}, {n:"Alatalja soutu, leveä kahva",e:"talja"}, {n:"T-tankosoutu",e:"tanko"}, {n:"Soutu laitteessa rintatuella",e:"laite"}, {n:"Ylävartalon ojennus / selänojennus",e:"kehonpaino"}]},
-  {g:"Hartiat", items:[{n:"Pystypunnerrus tangolla",e:"tanko"}, {n:"Pystypunnerrus käsipainoilla",e:"käsipaino"}, {n:"Olkapääpunnerrus laitteessa",e:"laite"}, {n:"Sivuvipunosto käsipainoilla",e:"käsipaino"}, {n:"Sivuvipunosto taljassa yhdellä kädellä",e:"talja"}, {n:"Takaolkapään vipunosto kumarassa",e:"käsipaino"}, {n:"Face pull taljassa",e:"talja"}, {n:"Etuvipunosto",e:"käsipaino"}]},
-  {g:"Hauis", items:[{n:"Hauiskääntö vinotangolla",e:"tanko"}, {n:"Bayesian curl",e:"talja"}, {n:"Hauiskääntö käsipainoilla",e:"käsipaino"}, {n:"Hauiskääntö vuorotellen kiertäen",e:"käsipaino"}, {n:"Vasarakääntö",e:"käsipaino"}, {n:"Hauiskääntö vinopenkissä",e:"käsipaino"}, {n:"Hauiskääntö taljassa suoralla kahvalla",e:"talja"}]},
-  {g:"Ojentaja", items:[{n:"Ojentaja niskan takaa taljassa, suora kahva",e:"talja"}, {n:"Ojentajapunnerrus taljassa köydellä",e:"talja"}, {n:"Ojentajapunnerrus taljassa suoralla kahvalla",e:"talja"}, {n:"Ranskalainen punnerrus tangolla",e:"tanko"}, {n:"Ranskalainen punnerrus käsipainoilla",e:"käsipaino"}, {n:"Kapea penkkipunnerrus",e:"tanko"}, {n:"Dippi ojentajalle, pysty vartalo",e:"kehonpaino"}]},
-  {g:"Etureisi", items:[{n:"Polven ojennus",e:"laite"}, {n:"Askelkyykkykävely",e:"käsipaino"}, {n:"Jalkaprässi",e:"laite"}, {n:"Bulgarialainen askelkyykky",e:"käsipaino"}, {n:"Askelkyykky paikallaan",e:"käsipaino"}, {n:"Astuminen korokkeelle",e:"käsipaino"}, {n:"Goblet-kyykky",e:"käsipaino"}]},
-  {g:"Takareisi ja pakarat", items:[{n:"Romanialainen maastaveto",e:"tanko"}, {n:"Polven koukistus maaten",e:"laite"}, {n:"Polven koukistus istuen",e:"laite"}, {n:"Maastaveto",e:"tanko"}, {n:"Romanialainen maastaveto käsipainoilla",e:"käsipaino"}, {n:"Lantionnosto tangolla (hip thrust)",e:"tanko"}, {n:"Selänojennus / hyperextensio",e:"kehonpaino"}, {n:"Pakaran ojennus taljassa",e:"talja"}, {n:"Lonkan loitonnus laitteessa",e:"laite"}]},
-  {g:"Pohkeet", items:[{n:"Pohjenousu seisten korokkeelta",e:"käsipaino"}, {n:"Pohjenousu laitteessa seisten",e:"laite"}, {n:"Pohjenousu istuen",e:"laite"}, {n:"Pohjenousu jalkaprässissä",e:"laite"}]},
-  {g:"Keskivartalo", items:[{n:"Vatsarutistus taljassa polvillaan",e:"talja"}, {n:"Riipuntapolvennosto",e:"kehonpaino"}, {n:"Riipuntajalannosto suorin jaloin",e:"kehonpaino"}, {n:"Lankku",e:"kehonpaino",u:"s"}, {n:"Sivulankku",e:"kehonpaino",u:"s"}, {n:"Ab wheel -rullaus",e:"kehonpaino"}, {n:"Pallof press taljassa",e:"talja"}, {n:"Vatsaliike laitteessa",e:"laite"}, {n:"Farmarikävely",e:"käsipaino"}]},
-  {g:"Kyynärvarret ja ote", items:[{n:"Ranteen koukistus tangolla",e:"tanko"}, {n:"Ranteen ojennus tangolla",e:"tanko"}, {n:"Tangosta riippuminen",e:"kehonpaino",u:"s",st:2.5}]},
+  {g:"Rinta", items:[{n:"Penkkipunnerrus tangolla",e:"tanko",sf:"penkki"}, {n:"Vinopenkkipunnerrus tangolla",e:"tanko",sf:"penkki"}, {n:"Penkkipunnerrus käsipainoilla",e:"käsipaino",sf:"kp"}, {n:"Vinopenkkipunnerrus käsipainoilla",e:"käsipaino",sf:"kp"}, {n:"Vipunosto penkillä käsipainoilla",e:"käsipaino"}, {n:"Ristikkäistalja ylhäältä",e:"talja"}, {n:"Ristikkäistalja keskeltä",e:"talja"}, {n:"Ristikkäistalja alhaalta",e:"talja"}, {n:"Punnerrus",e:"kehonpaino"}, {n:"Alaviistopenkkipunnerrus tangolla",e:"tanko",sf:"penkki"}, {n:"Rintaprässi laitteessa",e:"laite"}, {n:"Perhoslaite (pec deck)",e:"laite"}, {n:"Dippi rinnalle, eteen nojaten",e:"kehonpaino"}, {n:"Vinopenkkipunnerrus Smith-laitteessa",e:"laite",sf:"smith"}]},
+  {g:"Selkä — leveys (vetoliikkeet ylhäältä)", items:[{n:"Ylätalja myötäotteella",e:"talja"}, {n:"Pullover taljassa suoralla kahvalla",e:"talja"}, {n:"Ylätalja vastaotteella",e:"talja"}, {n:"Ylätalja kapealla kolmiokahvalla",e:"talja"}, {n:"Ylätalja yhdellä kädellä",e:"talja"}, {n:"Leuanveto myötäotteella",e:"kehonpaino"}, {n:"Leuanveto vastaotteella",e:"kehonpaino"}, {n:"Vetoliike laitteessa",e:"laite"}, {n:"Avustettu leuanveto laitteessa",e:"laite"}, {n:"Suorin käsin alasveto taljassa",e:"talja"}]},
+  {g:"Selkä — paksuus (soutuliikkeet)", items:[{n:"Kulmasoutu tangolla",e:"tanko"}, {n:"Käsipainosoutu yhdellä kädellä",e:"käsipaino"}, {n:"Alatalja soutu, kolmiokahva",e:"talja"}, {n:"Alatalja soutu, leveä kahva",e:"talja"}, {n:"T-tankosoutu",e:"tanko"}, {n:"Soutu laitteessa rintatuella",e:"laite"}, {n:"Ylävartalon ojennus / selänojennus",e:"kehonpaino"}, {n:"Pendlay-soutu",e:"tanko"}, {n:"Rintatukisoutu käsipainoilla vinopenkillä",e:"käsipaino"}, {n:"Alatalja soutu yhdellä kädellä",e:"talja"}, {n:"Kehonpainosoutu tangon alla",e:"kehonpaino"}]},
+  {g:"Hartiat", items:[{n:"Pystypunnerrus tangolla",e:"tanko",sf:"pysty"}, {n:"Pystypunnerrus käsipainoilla",e:"käsipaino"}, {n:"Olkapääpunnerrus laitteessa",e:"laite"}, {n:"Sivuvipunosto käsipainoilla",e:"käsipaino"}, {n:"Sivuvipunosto taljassa yhdellä kädellä",e:"talja"}, {n:"Takaolkapään vipunosto kumarassa",e:"käsipaino"}, {n:"Face pull taljassa",e:"talja"}, {n:"Etuvipunosto",e:"käsipaino"}, {n:"Arnold-punnerrus",e:"käsipaino"}, {n:"Sivuvipunosto laitteessa",e:"laite"}, {n:"Takaolkapää laitteessa (reverse pec deck)",e:"laite"}, {n:"Pystysoutu taljassa",e:"talja"}, {n:"Olankohautus käsipainoilla",e:"käsipaino"}, {n:"Olankohautus tangolla",e:"tanko"}]},
+  {g:"Hauis", items:[{n:"Hauiskääntö vinotangolla",e:"tanko"}, {n:"Bayesian curl",e:"talja"}, {n:"Hauiskääntö käsipainoilla",e:"käsipaino"}, {n:"Hauiskääntö vuorotellen kiertäen",e:"käsipaino"}, {n:"Vasarakääntö",e:"käsipaino"}, {n:"Hauiskääntö vinopenkissä",e:"käsipaino"}, {n:"Hauiskääntö taljassa suoralla kahvalla",e:"talja"}, {n:"Scott-penkki tangolla (preacher curl)",e:"tanko"}, {n:"Hauiskääntö laitteessa",e:"laite"}, {n:"Keskittynyt hauiskääntö",e:"käsipaino"}]},
+  {g:"Ojentaja", items:[{n:"Ojentaja niskan takaa taljassa, suora kahva",e:"talja"}, {n:"Ojentajapunnerrus taljassa köydellä",e:"talja"}, {n:"Ojentajapunnerrus taljassa suoralla kahvalla",e:"talja"}, {n:"Ranskalainen punnerrus tangolla",e:"tanko",sf:"ranska"}, {n:"Ranskalainen punnerrus käsipainoilla",e:"käsipaino"}, {n:"Kapea penkkipunnerrus",e:"tanko",sf:"penkki"}, {n:"Dippi ojentajalle, pysty vartalo",e:"kehonpaino"}, {n:"Ojentajapunnerrus taljassa yhdellä kädellä",e:"talja"}, {n:"Ojentajan ojennus käsipainolla kumarassa (kickback)",e:"käsipaino"}, {n:"Dippilaite",e:"laite"}]},
+  {g:"Etureisi", items:[{n:"Polven ojennus",e:"laite"}, {n:"Askelkyykkykävely",e:"käsipaino"}, {n:"Jalkaprässi",e:"laite",sf:"laite"}, {n:"Bulgarialainen askelkyykky",e:"käsipaino"}, {n:"Askelkyykky paikallaan",e:"käsipaino"}, {n:"Astuminen korokkeelle",e:"käsipaino"}, {n:"Goblet-kyykky",e:"käsipaino"}, {n:"Takakyykky",e:"tanko",sf:"kyykky"}, {n:"Etukyykky",e:"tanko",sf:"etukyykky"}, {n:"Kyykky turvatangolla (safety squat bar)",e:"tanko",sf:"kyykky"}, {n:"Hack-kyykky laitteessa",e:"laite",sf:"laite"}, {n:"Smith-kyykky",e:"laite",sf:"smith"}, {n:"Pendulum-kyykky laitteessa",e:"laite",sf:"laite"}]},
+  {g:"Takareisi ja pakarat", items:[{n:"Romanialainen maastaveto",e:"tanko",sf:"veto"}, {n:"Polven koukistus maaten",e:"laite"}, {n:"Polven koukistus istuen",e:"laite"}, {n:"Maastaveto",e:"tanko",sf:"veto"}, {n:"Romanialainen maastaveto käsipainoilla",e:"käsipaino"}, {n:"Lantionnosto tangolla (hip thrust)",e:"tanko",sf:"thrust"}, {n:"Selänojennus / hyperextensio",e:"kehonpaino"}, {n:"Pakaran ojennus taljassa",e:"talja"}, {n:"Lonkan loitonnus laitteessa",e:"laite"}, {n:"Sumomaastaveto",e:"tanko",sf:"veto"}, {n:"Trap bar -maastaveto",e:"tanko",sf:"veto"}, {n:"Hyvää huomenta tangolla",e:"tanko",sf:"huomenta"}, {n:"Nordic-takareisi",e:"kehonpaino"}, {n:"Kahvakuulaheilautus",e:"käsipaino"}, {n:"Lantionnosto laitteessa",e:"laite"}, {n:"Lonkan lähennys laitteessa",e:"laite"}]},
+  {g:"Pohkeet", items:[{n:"Pohjenousu seisten korokkeelta",e:"käsipaino"}, {n:"Pohjenousu laitteessa seisten",e:"laite"}, {n:"Pohjenousu istuen",e:"laite"}, {n:"Pohjenousu jalkaprässissä",e:"laite"}, {n:"Säären nosto (tibialis)",e:"kehonpaino"}]},
+  {g:"Keskivartalo", items:[{n:"Vatsarutistus taljassa polvillaan",e:"talja"}, {n:"Riipuntapolvennosto",e:"kehonpaino"}, {n:"Riipuntajalannosto suorin jaloin",e:"kehonpaino"}, {n:"Lankku",e:"kehonpaino",u:"s"}, {n:"Sivulankku",e:"kehonpaino",u:"s"}, {n:"Ab wheel -rullaus",e:"kehonpaino"}, {n:"Pallof press taljassa",e:"talja"}, {n:"Vatsaliike laitteessa",e:"laite"}, {n:"Farmarikävely",e:"käsipaino"}, {n:"Dead bug",e:"kehonpaino"}, {n:"Sivutaivutus käsipainolla",e:"käsipaino"}, {n:"Puunhakkuu taljassa (woodchop)",e:"talja"}, {n:"Vatsarutistus maaten",e:"kehonpaino"}]},
+  {g:"Kyynärvarret ja ote", items:[{n:"Ranteen koukistus tangolla",e:"tanko"}, {n:"Ranteen ojennus tangolla",e:"tanko"}, {n:"Tangosta riippuminen",e:"kehonpaino",u:"s",st:2.5}, {n:"Ranteen koukistus käsipainoilla",e:"käsipaino"}, {n:"Levypito sormin",e:"kehonpaino",u:"s",st:2.5}]},
 ];
 const MG = {};
 LIB.forEach(g => g.items.forEach(i => { MG[i.n] = g.g; }));
+
+/* Turvahuomiot riskialttiisiin liikkeisiin. Näkyvät treenissä liikkeen
+   kohdalla ja korostettuna, kun tiedossa on maksimisarja.
+   Lähteet: Barbell Logic (barbell safety guide), Strength Ambassadors
+   (how to fail a squat safely). */
+const SAFETY = {
+  kyykky:    "Raskaat sarjat ja maksimit vain telineessä: turvaraudat hieman alimman kohdan alapuolelle. Jos toisto ei nouse, laske tanko raudoille — älä heitä sitä selästä.",
+  etukyykky: "Turvaraudat hieman alimman kohdan alapuolelle. Epäonnistuessa irrota ote ja astu taakse, jolloin tanko putoaa eteen raudoille.",
+  penkki:    "Raskaat sarjat telineessä turvaraudat juuri rinnan alapuolella tai avustajan kanssa. Peukalo aina tangon ympäri. Yksin ilman raudoja: ei lukkoja, jotta levyt voi kallistaa pois.",
+  kp:        "Raskailla käsipainoilla avustaja tai laske painot hallitusti sivuille. Peukalo kahvan ympäri.",
+  pysty:     "Pystypunnerrusta ei voi avustaa: raskaat sarjat telineessä turvaraudat noin olkapäiden korkeudella, ettei tanko osu päähän.",
+  ranska:    "Tanko kulkee kasvojen yläpuolella: raskaat sarjat avustajan kanssa, peukalo tangon ympäri.",
+  veto:      "Avustajaa ei tarvita — turva on tekniikka. Lopeta sarja heti, jos selkä alkaa pyöristyä.",
+  huomenta:  "Pidä kuorma maltillisena, ei maksimeja. Telineessä turvaraudat hieman alimman kohdan alapuolelle.",
+  thrust:    "Pehmuste tangon ja lantion väliin. Tanko vierii helposti: aloita kevyesti ja pidä ote koko sarjan ajan.",
+  laite:     "Tarkista turvasalvat ennen sarjaa. Älä lukitse polvia suoriksi yläasennossa.",
+  smith:     "Säädä Smith-laitteen turvastopparit hieman alimman kohdan alapuolelle ja varmista lukituskierto ennen raskaita sarjoja."
+};
+const SAFE = {};
+LIB.forEach(g => g.items.forEach(i => { if(i.sf) SAFE[i.n] = SAFETY[i.sf]; }));
+
+/* Turvahuomio treeninäkymään. Maksimisarja (MAX tai yhden toiston sarjat) korostaa sen. */
+function safetyHint(x){
+  const t = SAFE[x.name]; if(!t) return "";
+  const maxDay = x.amrap || x.sets.some(s => s.a) || x.sets.every(s => (s.r || 0) === 1);
+  return '<div class="hint safe'+(maxDay?' hot':'')+'"><span class="sflag">'+(maxDay?'Ennen maksimia':'Turvallisuus')+'</span>'+
+         '<span>'+esc(t)+'</span></div>';
+}
 
 
 function uid(p){ return p + Math.random().toString(36).slice(2,9); }
@@ -915,18 +943,35 @@ function bestE1(x){
   return x.sets.reduce((a, s) => Math.max(a, e1rm(s.w || 0, s.r || 0)), 0);
 }
 
-function indexSeries(){
+/* Lihasryhmä kuvaajaa varten: liikepankin ryhmä ilman alaotsikkoa
+   ("Selkä — leveys" → "Selkä"). Omat liikkeet → "Muut". */
+const groupOf = name => (MG[name] || "Muut").split(" — ")[0];
+
+/* Ryhmät joista on voimadataa (lämmittelyt ja pidot eivät kelpaa). */
+function chartGroups(){
+  const set = new Set();
+  S.sessions.forEach(s => s.ex.forEach(x => { if(bestE1(x) > 0) set.add(groupOf(x.name)); }));
+  return LIB.map(g => g.g.split(" — ")[0]).filter((g, i, a) => a.indexOf(g) === i && set.has(g))
+            .concat(set.has("Muut") ? ["Muut"] : []);
+}
+
+/* mg = lihasryhmä tai tyhjä (kaikki). Ryhmänäkymässä mukana vain viikot,
+   joilla ryhmää on treenattu — muuten väliviikko näkyisi −100 %:n työmääränä. */
+function indexSeries(mg){
   if(!S.sessions.length) return [];
   const sorted = [...S.sessions].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const inG = x => !mg || groupOf(x.name) === mg;
 
   /* viikko -> { vol, best: {liike: e1RM} } */
   const weeks = new Map();
   sorted.forEach(sess => {
+    const xs = sess.ex.filter(inG);
+    if(mg && !xs.some(x => bestE1(x) > 0)) return;
     const k = weekKey(sess.date);
     if(!weeks.has(k)) weeks.set(k, {key:k, vol:0, best:{}});
     const w = weeks.get(k);
-    w.vol += volume(sess);
-    sess.ex.forEach(x => {
+    w.vol += volume({ex: xs});
+    xs.forEach(x => {
       const e = bestE1(x);
       if(e > 0 && (!w.best[x.name] || e > w.best[x.name])) w.best[x.name] = e;
     });
@@ -1054,19 +1099,30 @@ function chartScale(pts){
 }
 
 function viewChart(){
-  const pts = indexSeries();
+  const groups = chartGroups();
+  if(route.mg && !groups.includes(route.mg)) route.mg = "";
+  const mg = route.mg || "";
+  const pts = indexSeries(mg);
   const c = el('<div class="card pad"></div>');
+  const sel = groups.length > 1
+    ? '<label class="f" style="margin:8px 0 2px"><span class="eyebrow">Lihasryhmä</span>'+
+        '<select data-mg="1">'+
+          '<option value="">Kaikki liikkeet</option>'+
+          groups.map(g => '<option'+(g===mg?' selected':'')+'>'+esc(g)+'</option>').join("")+
+        '</select></label>'
+    : '';
 
   if(pts.length < 2){
-    c.innerHTML = '<div class="eyebrow">Kehitys</div>'+
-      '<div class="empty" style="padding:22px 6px">Kuvaaja piirtyy kun treenejä on vähintään kahdelta eri viikolta.</div>';
+    c.innerHTML = '<div class="eyebrow">Kehitys</div>'+sel+
+      '<div class="empty" style="padding:22px 6px">Kuvaaja piirtyy kun '+(mg ? 'tätä lihasryhmää on treenattu' : 'treenejä on')+
+      ' vähintään kahdelta eri viikolta.</div>';
     return c;
   }
 
   const last = pts[pts.length - 1];
 
   c.innerHTML =
-    '<div class="eyebrow">Kehitys — indeksi, lähtötaso 0</div>'+
+    '<div class="eyebrow">Kehitys — indeksi, lähtötaso 0</div>'+sel+
     '<div class="legend">'+ SER.map(se => {
         const off = route.hideSer && route.hideSer[se.k];
         return '<button class="lg'+(off?' off':'')+'" data-ser="'+se.k+'" '+
@@ -1087,6 +1143,7 @@ function viewChart(){
         '</tbody></table></div>'
       : '')+
     '<p style="font-size:12.5px;color:var(--dim);margin:11px 0 0">'+
+      (mg ? '<b>'+esc(mg)+':</b> vain tämän lihasryhmän liikkeet ja viikot, joilla niitä on tehty. ' : '')+
       'Voima = arvioidun maksimin keskimääräinen muutos liikkeittäin. '+
       'Työmäärä = viikon kokonaisvolyymi suhteessa ensimmäiseen treeniviikkoon.</p>';
 
@@ -1347,6 +1404,7 @@ function viewWorkout(v){
         body.appendChild(el('<div class="hint"><span>Tavoite</span><span class="num">'+x.target+' × '+reps(x)+repUnit(x)+'</span></div>'));
       }
 
+      const sh = safetyHint(x); if(sh) body.appendChild(el(sh));
       x.sets.forEach((s,j) => {
         body.appendChild(el(
           '<div class="setrow'+(j===0?" first":"")+(s.ok?" ok":"")+(s.a?" amrap":"")+'" data-ex="'+i+'" data-set="'+j+'">'+
@@ -1715,6 +1773,7 @@ function openSheet(){
            : '<div style="font-size:14px;color:var(--faint);margin-top:6px">Ei vielä</div>')+
       '</div>';
     const hx = h.length ? h[h.length-1].x : null;
+    if(SAFE[s.name]) body.appendChild(el('<div class="hint safe" style="margin:0"><span class="sflag">Turvallisuus</span><span>'+esc(SAFE[s.name])+'</span></div>'));
     if(!isWarm(hx)) body.appendChild(el('<div class="grid2">'+
       card('Sarjaennätys', rec.set, r => r.sets+' × '+r.reps+(r.u||'')+' · '+dateFi(r.date))+
       (isTime(hx)
@@ -2056,6 +2115,7 @@ document.addEventListener("change", async e => {
     if(!await ask('Tuodaanko "'+f.name+'"? Se korvaa kaiken nykyisen datan.',"Tuo")) return;
     const fr = new FileReader(); fr.onload = () => applyImport(fr.result); fr.readAsText(f); return;
   }
+  if(inp.dataset && inp.dataset.mg){ route.mg = inp.value; render(); return; }
   if(inp.dataset && inp.dataset.dw){
     S.settings.deloadWeeks = parseInt(inp.value, 10) || 0; save(); render(); return;
   }
