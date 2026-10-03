@@ -353,6 +353,11 @@ const group = n => console.log('\n--- ' + n + ' ---');
     const r = await p.evaluate(() => { const all = LIB.flatMap(g => g.items.map(i => i.n));
       return [MG['Takakyykky'], all.length, new Set(all).size]; });
     if(r[0] !== 'Etureisi' || r[1] !== r[2] || r[1] < 130) throw new Error(JSON.stringify(r)); });
+  await T('Smith-liikkeet: vahintaan 18, valine smith, askel 2,5', async () => {
+    const r = await p.evaluate(() => { const sm = LIB.flatMap(g => g.items).filter(i => /Smith/.test(i.n));
+      const d = defFromLib(sm.find(i => i.n === 'Penkkipunnerrus Smith-laitteessa'));
+      return [sm.length, sm.filter(i => i.e !== 'smith' && i.e !== 'kehonpaino').map(i => i.n).join('|'), d.step, !!SAFE[d.name]]; });
+    if(r[0] < 18 || r[1] || r[2] !== 2.5 || !r[3]) throw new Error(JSON.stringify(r)); });
   await T('turvahuomio kyykyssa, penkissa, pystyssa ja maastavedossa', async () => {
     const r = await p.evaluate(() => ['Takakyykky','Penkkipunnerrus tangolla','Pystypunnerrus tangolla','Maastaveto','Etukyykky']
       .map(n => /raudat|avust|tekniikka/.test(SAFE[n] || '')));
