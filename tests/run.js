@@ -250,6 +250,102 @@ const group = n => console.log('\n--- ' + n + ' ---');
   await p.locator('[data-cancel]').click(); await p.waitForTimeout(200); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(250);
   await p.evaluate(() => { S.settings.mode = 'staattinen'; save(); });
 
+  group('Aikaliikkeet ja lammittely');
+  await p.evaluate(() => { S.sessions = []; S.active = null; S.settings = defaultSettings(); save(); });
+  await T('liikepankin ensimmainen ryhma on Alkulammittely', async () => {
+    const r = await p.evaluate(() => [LIB[0].g, LIB[0].items.length, LIB[0].items.every(i => i.warm && i.min > 0)]);
+    if(r[0] !== 'Alkulämmittely' || r[1] < 8 || !r[2]) throw new Error(JSON.stringify(r)); });
+  await T('kuntopyora, juoksumatto, soutulaite, keppijumppa mukana muistilistoineen', async () => {
+    const r = await p.evaluate(() => ['Kuntopyörä','Juoksumatto','Soutulaite','Keppijumppa','Dynaaminen kehonpainolämmittely']
+      .map(n => (LIB[0].items.find(i => i.n === n) || {list:[]}).list.length));
+    if(r.some(n => n < 3)) throw new Error(r.join()); });
+  await T('riippuminen: sekunnit, 2,5 kg askel, 30-45 s', async () => {
+    const r = await p.evaluate(() => { const it = LIB.flatMap(g => g.items).find(i => i.n === 'Tangosta riippuminen');
+      const d = defFromLib(it); return [d.unit, d.step, d.rmin, d.rmax, nextWeight(d, 0, 1), nextWeight(d, 2.5, 1)]; });
+    if(r.join() !== 's,2.5,30,45,2.5,5') throw new Error(r.join()); });
+  await T('migraatio v8: ohjelman riippuminen muuttuu sekunneiksi', async () => {
+    await p.evaluate(() => { S.programs[1].ex.push({id:'xh', name:'Tangosta riippuminen', equip:'kehonpaino', step:1, sets:3, rmin:8, rmax:8, w:0}); S.v = 7; save(); });
+    await p.reload({waitUntil:'load'}); await p.waitForTimeout(400);
+    const r = await p.evaluate(() => { const x = S.programs[1].ex.find(e => e.id === 'xh'); return [S.v, x.unit, x.step, x.rmin, x.rmax]; });
+    if(r.join() !== '8,s,2.5,30,45') throw new Error(r.join()); });
+  await p.evaluate(() => { const it = LIB[0].items.find(i => i.n === 'Kuntopyörä'); const w = defFromLib(it); w.id = 'xw';
+    S.programs[1].ex.unshift(w); save(); });
+  await p.reload({waitUntil:'load'}); await p.waitForTimeout(400);
+  await p.locator('[data-start="'+await p.evaluate(() => S.programs[1].id)+'"]').click(); await p.waitForTimeout(350);
+  await T('lammittely on treenin ensimmainen ja muistilista nakyy', async () => {
+    const n = await p.locator('.witem').count(); if(n !== 4) throw new Error('kohtia ' + n);
+    const bt = await p.textContent('#barprog'); if(!/Lämmittely/.test(bt) || !/0 \/ 24 sarjaa/.test(bt)) throw new Error(bt); });
+  await T('muistilistan kohdan voi ruksata', async () => {
+    await p.locator('.witem').nth(1).click(); await p.waitForTimeout(200);
+    const r = await p.evaluate(() => S.active.ex[0].chk.join()); if(r !== 'false,true,false,false') throw new Error(r); });
+  await T('lammittelyn kesto minuutteina ja kuittaus', async () => {
+    await p.locator('.ex').first().locator('.step[data-d="1"]').click(); await p.waitForTimeout(100);
+    await p.locator('.ex').first().locator('[data-chk]').click(); await p.waitForTimeout(250);
+    const r = await p.evaluate(() => [S.active.ex[0].sets[0].r, S.active.ex[0].sets[0].ok].join()); if(r !== '9,true') throw new Error(r); });
+  const hi = await p.evaluate(() => S.active.ex.findIndex(x => x.name === 'Tangosta riippuminen'));
+  await T('riippumisessa kentat Lisapaino ja Sekunnit', async () => {
+    await p.locator('.ex-head').nth(hi).click(); await p.waitForTimeout(250);
+    const t = await p.locator('.ex').nth(hi).locator('.setrow').first().textContent();
+    if(!/Lisäpaino kg/.test(t) || !/Sekunnit/.test(t)) throw new Error(t); });
+  await T('sekuntien stepperi 5 s, painon 2,5 kg', async () => {
+    const row = p.locator('.ex').nth(hi).locator('.setrow').first();
+    await row.locator('.step[data-f="r"][data-d="1"]').click(); await row.locator('.step[data-f="w"][data-d="1"]').click();
+    await p.waitForTimeout(100);
+    const r = await p.evaluate(i => [S.active.ex[i].sets[0].r, S.active.ex[i].sets[0].w].join(), hi); if(r !== '50,2.5') throw new Error(r); });
+  await p.evaluate(i => { S.active.ex.forEach((x, k) => { if(k !== i && k !== 0) x.skip = true; });
+    S.active.ex[i].sets.forEach(t => { t.ok = true; t.w = 2.5; t.r = 50; }); save(); }, hi);
+  await p.locator('[data-finish]').click(); await p.waitForTimeout(400);
+  await T('tiivistelma: lammittely minuutteina, ei pitoa toistoihin eika volyymiin', async () => {
+    const r = await p.evaluate(() => { const s = S.sessions[S.sessions.length-1]; return [summaryText(s), volume(s), setsDone(s)]; });
+    if(!/Lämmittely: Kuntopyörä 9 min/.test(r[0]) || !/1 liikettä, 3 sarjaa, 0 toistoa/.test(r[0]) || r[1] !== 0 || r[2] !== 3)
+      throw new Error(JSON.stringify(r)); });
+  await T('treenin tiedoissa "2,5 kg × 50 s"', async () => {
+    const t = await p.textContent('#sheetbg'); if(!/2,5 kg × 50 s/.test(t) || !/9 min/.test(t)) throw new Error(t.slice(0,200)); });
+  await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
+  await T('voimaindeksi ei laske pitoa eika lammittelya', async () => {
+    const r = await p.evaluate(() => indexSeries()[0].lifts); if(r !== 0) throw new Error(String(r)); });
+  await T('automaatti: pito etenee 5 s kerrallaan', async () => {
+    const r = await p.evaluate(() => { S.settings.mode = 'automaattinen'; S.settings.cycleStart = null;
+      S.sessions[S.sessions.length-1].ex.find(e => e.unit === 's').rmax = 60;   /* automaattihaarukka 30-60 */
+      const d = S.programs[1].ex.find(e => e.id === 'xh'); const pl = autoPlan(d); S.settings.mode = 'staattinen';
+      return [pl.w, pl.reps.join('/'), pl.reason]; });
+    if(r[0] !== 2.5 || r[1] !== '55/55/55' || !/5 sekuntia/.test(r[2])) throw new Error(JSON.stringify(r)); });
+  await T('automaatti: MAX-pito +15 s yli ylarajan nostaa painoa heti', async () => {
+    const r = await p.evaluate(() => { S.settings.mode = 'automaattinen';
+      const s = S.sessions[S.sessions.length-1], x = s.ex.find(e => e.unit === 's');
+      x.rmax = 60; x.sets.forEach(t => { t.r = 60; }); x.sets[2].a = true; x.sets[2].r = 75;
+      const d = S.programs[1].ex.find(e => e.id === 'xh'); const pl = autoPlan(d); S.settings.mode = 'staattinen';
+      return [pl.w, pl.up, pl.reps.join('/')]; });
+    if(r.join() !== '5,true,30/30/30') throw new Error(r.join()); });
+  await T('historian liikelista: lammittely ja pito oikein', async () => {
+    await p.locator('[data-tab="historia"]').click(); await p.waitForTimeout(250);
+    await p.locator('[data-hsub="liikkeet"]').click(); await p.waitForTimeout(250);
+    const t = await p.textContent('#view'); if(!/Viimeksi 9 min · lämmittely/.test(t) || !/× 75 s|× 60 s/.test(t)) throw new Error(t.slice(0,300)); });
+
+  await p.locator('[data-tab="ohjelmat"]').click(); await p.waitForTimeout(250);
+  await p.locator('[data-editp="'+await p.evaluate(() => S.programs[1].id)+'"]').click(); await p.waitForTimeout(300);
+  await T('editorissa lammittelylle kesto ja muistilista', async () => {
+    const box = p.locator('[data-exi="0"]');
+    if(!(await box.locator('textarea[data-x="list"]').count()) || !(await box.locator('input[data-x="min"]').count())) throw new Error('kentat puuttuvat');
+    const v = await box.locator('textarea').inputValue(); if(v.split('\n').length !== 4) throw new Error(v); });
+  await T('muistilistan muokkaus tallentuu', async () => {
+    const box = p.locator('[data-exi="0"]');
+    await box.locator('textarea').fill('Satula kohdalleen\n\n  Kevyesti 5 min  \nLoppukiri');
+    await box.locator('input[data-x="min"]').fill('6');
+    await p.locator('[data-savep]').click(); await p.waitForTimeout(250);
+    const r = await p.evaluate(() => { const x = S.programs[1].ex[0]; return JSON.stringify([x.min, x.list]); });
+    if(r !== '[6,["Satula kohdalleen","Kevyesti 5 min","Loppukiri"]]') throw new Error(r); });
+  await T('mittarin vaihto sekunteihin antaa pitohaarukan', async () => {
+    await p.locator('[data-editp="'+await p.evaluate(() => S.programs[1].id)+'"]').click(); await p.waitForTimeout(300);
+    const i = await p.evaluate(() => S.programs[1].ex.findIndex(e => e.name === 'Penkkipunnerrus tangolla'));
+    await p.locator('[data-exi="'+i+'"] select[data-x="unit"]').selectOption('s'); await p.waitForTimeout(300);
+    const r = await p.evaluate(i => { const x = S.programs[1].ex[i]; return [x.unit, x.rmin, x.rmax].join(); }, i);
+    const lbl = await p.locator('[data-exi="'+i+'"]').textContent();
+    await p.locator('[data-exi="'+i+'"] select[data-x="unit"]').selectOption(''); await p.waitForTimeout(300);
+    const back = await p.evaluate(i => { const x = S.programs[1].ex[i]; return [x.unit, x.rmin, x.rmax].join(); }, i);
+    if(r !== 's,30,45' || !/Sekunnit väh/.test(lbl) || back !== ',8,8') throw new Error(r + ' | ' + back); });
+  await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

@@ -168,6 +168,18 @@ label.f > span{display:block;margin-bottom:4px}
 .chk:active{background:var(--accent);color:var(--accent-ink)}
 .setrow.ok .chk{background:var(--good);border-color:transparent;color:#fff}
 .rowtools{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.setrow.one{grid-template-columns:22px 1fr 52px}
+
+/* ---- lämmittelyn muistilista ---- */
+.wlist{display:flex;flex-direction:column;margin:0 0 10px;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.witem{display:flex;align-items:flex-start;gap:10px;text-align:left;padding:10px 11px;font-size:14.5px;line-height:1.35;
+  background:var(--surface2);color:var(--text);border-top:1px solid var(--line)}
+.witem:first-child{border-top:0}
+.witem.on{color:var(--dim)}
+.witem.on > span:last-child{text-decoration:line-through;text-decoration-color:var(--faint)}
+.wbox{flex:none;width:20px;height:20px;margin-top:1px;border:1.5px solid var(--line-2);border-radius:5px;display:grid;place-items:center}
+.witem.on .wbox{background:var(--good);border-color:transparent;color:#fff}
+.wbox svg{width:14px;height:14px}
 
 /* ---- automaattitila ---- */
 .setrow.amrap .sn{padding-bottom:13px}

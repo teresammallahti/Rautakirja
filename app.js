@@ -15,11 +15,33 @@ const I = {
 
 /* ============ data ============ */
 const KEY = "rautakirja.v1";
-const STEPS = {tanko:2.5, "käsipaino":2, talja:2.5, laite:5, kehonpaino:1};
-const EQUIPS = ["tanko","käsipaino","talja","laite","kehonpaino"];
+const STEPS = {tanko:2.5, "käsipaino":2, talja:2.5, laite:5, kehonpaino:1, "lämmittely":0};
+const EQUIPS = ["tanko","käsipaino","talja","laite","kehonpaino","lämmittely"];
+
+/* Aikapohjaiset liikkeet (unit "s"): toistojen paikalla sekunnit.
+   Lämmittelyt (warm): kesto minuutteina + muokattava muistilista;
+   eivät kuulu volyymiin, ennätyksiin eivätkä indekseihin. */
+const isTime = x => !!x && x.unit === "s";
+const isWarm = x => !!x && !!x.warm;
+const repInc = x => isTime(x) ? 5 : 1;
+const TIME_R = {rmin:30, rmax:45, autoRmin:30, autoRmax:60};
 
 /* Liikepankki — lähde: Liikepankki.md projektikansiossa */
 const LIB = [
+  /* Lämmittely: RAMP-malli (nosta sykettä → aktivoi ja liikkuvuus → nousevat sarjat).
+     Lähteet: Jeffreys 2007; O'Hanlon Performance; MacroFactor; IronMan (keppiliikkeet). */
+  {g:"Alkulämmittely", items:[
+    {n:"Kuntopyörä",e:"lämmittely",warm:1,min:8,list:["Satula: polvi jää alakäännössä hieman koukkuun","Kevyt vastus alkuun, nosta vähitellen","Tahti: hengästyttää, mutta pystyt puhumaan","Viimeinen minuutti reippaammin"]},
+    {n:"Juoksumatto",e:"lämmittely",warm:1,min:8,list:["1–2 min kävellen","Nosta vauhtia tai kulmaa (5–10 %) vähitellen","Reipas ylämäkikävely tai kevyt hölkkä","Älä roiku kaiteissa"]},
+    {n:"Soutulaite",e:"lämmittely",warm:1,min:6,list:["Vastus (damper) 3–5","Veto: jalat → vartalo → kädet, palautus päinvastoin","Selkä suorana, älä pyöristä","Tahti noin 20–24 vetoa minuutissa"]},
+    {n:"Crosstrainer",e:"lämmittely",warm:1,min:8,list:[]},
+    {n:"Porraskone",e:"lämmittely",warm:1,min:6,list:[]},
+    {n:"Hyppynaru",e:"lämmittely",warm:1,min:3,list:[]},
+    {n:"Dynaaminen kehonpainolämmittely",e:"lämmittely",warm:1,min:5,list:["Käsien pyöritys 10 eteen + 10 taakse","Jalan heilautus eteen–taakse ja sivuttain, 10 + 10 / jalka","Kehonpainokyykky 10","Askelkyykky + ylävartalon kierto 5 / puoli","World's greatest stretch 3 / puoli","Lantionnosto 10","Lapatukipunnerrus 10"]},
+    {n:"Keppijumppa",e:"lämmittely",warm:1,min:5,list:["Läpivienti 10: suorat kädet, leveä ote, kavenna vähitellen","Hyvää huomenta 10: keppi niskan päällä, taivutus lantiosta","Yläkyykky kepillä 8","Vartalon kierto keppi hartioilla 10 / puoli","Sivutaivutus keppi ylhäällä 5 / puoli"]},
+    {n:"Kuminauhalämmittely olkapäille",e:"lämmittely",warm:1,min:4,list:["Kuminauhan erotus (pull-apart) 15","Face pull kuminauhalla 15","Ulkokierto kuminauhalla 10 / puoli","Lapatukipunnerrus 10"]},
+    {n:"Nousevat lämmittelysarjat",e:"lämmittely",warm:1,min:5,list:["Ensimmäiseen isoon liikkeeseen","Tyhjä tanko × 10","Noin 40 % työpainosta × 5","Noin 60 % × 5","Noin 80 % × 3","Ei uuvuteta — lyhyt tauko ja työsarjoihin"]}
+  ]},
   {g:"Rinta", items:[{n:"Penkkipunnerrus tangolla",e:"tanko"}, {n:"Vinopenkkipunnerrus tangolla",e:"tanko"}, {n:"Penkkipunnerrus käsipainoilla",e:"käsipaino"}, {n:"Vinopenkkipunnerrus käsipainoilla",e:"käsipaino"}, {n:"Vipunosto penkillä käsipainoilla",e:"käsipaino"}, {n:"Ristikkäistalja ylhäältä",e:"talja"}, {n:"Ristikkäistalja keskeltä",e:"talja"}, {n:"Ristikkäistalja alhaalta",e:"talja"}, {n:"Punnerrus",e:"kehonpaino"}]},
   {g:"Selkä — leveys (vetoliikkeet ylhäältä)", items:[{n:"Ylätalja myötäotteella",e:"talja"}, {n:"Pullover taljassa suoralla kahvalla",e:"talja"}, {n:"Ylätalja vastaotteella",e:"talja"}, {n:"Ylätalja kapealla kolmiokahvalla",e:"talja"}, {n:"Ylätalja yhdellä kädellä",e:"talja"}, {n:"Leuanveto myötäotteella",e:"kehonpaino"}, {n:"Leuanveto vastaotteella",e:"kehonpaino"}, {n:"Vetoliike laitteessa",e:"laite"}]},
   {g:"Selkä — paksuus (soutuliikkeet)", items:[{n:"Kulmasoutu tangolla",e:"tanko"}, {n:"Käsipainosoutu yhdellä kädellä",e:"käsipaino"}, {n:"Alatalja soutu, kolmiokahva",e:"talja"}, {n:"Alatalja soutu, leveä kahva",e:"talja"}, {n:"T-tankosoutu",e:"tanko"}, {n:"Soutu laitteessa rintatuella",e:"laite"}, {n:"Ylävartalon ojennus / selänojennus",e:"kehonpaino"}]},
@@ -29,8 +51,8 @@ const LIB = [
   {g:"Etureisi", items:[{n:"Polven ojennus",e:"laite"}, {n:"Askelkyykkykävely",e:"käsipaino"}, {n:"Jalkaprässi",e:"laite"}, {n:"Bulgarialainen askelkyykky",e:"käsipaino"}, {n:"Askelkyykky paikallaan",e:"käsipaino"}, {n:"Astuminen korokkeelle",e:"käsipaino"}, {n:"Goblet-kyykky",e:"käsipaino"}]},
   {g:"Takareisi ja pakarat", items:[{n:"Romanialainen maastaveto",e:"tanko"}, {n:"Polven koukistus maaten",e:"laite"}, {n:"Polven koukistus istuen",e:"laite"}, {n:"Maastaveto",e:"tanko"}, {n:"Romanialainen maastaveto käsipainoilla",e:"käsipaino"}, {n:"Lantionnosto tangolla (hip thrust)",e:"tanko"}, {n:"Selänojennus / hyperextensio",e:"kehonpaino"}, {n:"Pakaran ojennus taljassa",e:"talja"}, {n:"Lonkan loitonnus laitteessa",e:"laite"}]},
   {g:"Pohkeet", items:[{n:"Pohjenousu seisten korokkeelta",e:"käsipaino"}, {n:"Pohjenousu laitteessa seisten",e:"laite"}, {n:"Pohjenousu istuen",e:"laite"}, {n:"Pohjenousu jalkaprässissä",e:"laite"}]},
-  {g:"Keskivartalo", items:[{n:"Vatsarutistus taljassa polvillaan",e:"talja"}, {n:"Riipuntapolvennosto",e:"kehonpaino"}, {n:"Riipuntajalannosto suorin jaloin",e:"kehonpaino"}, {n:"Lankku",e:"kehonpaino"}, {n:"Sivulankku",e:"kehonpaino"}, {n:"Ab wheel -rullaus",e:"kehonpaino"}, {n:"Pallof press taljassa",e:"talja"}, {n:"Vatsaliike laitteessa",e:"laite"}, {n:"Farmarikävely",e:"käsipaino"}]},
-  {g:"Kyynärvarret ja ote", items:[{n:"Ranteen koukistus tangolla",e:"tanko"}, {n:"Ranteen ojennus tangolla",e:"tanko"}, {n:"Tangosta riippuminen",e:"kehonpaino"}]},
+  {g:"Keskivartalo", items:[{n:"Vatsarutistus taljassa polvillaan",e:"talja"}, {n:"Riipuntapolvennosto",e:"kehonpaino"}, {n:"Riipuntajalannosto suorin jaloin",e:"kehonpaino"}, {n:"Lankku",e:"kehonpaino",u:"s"}, {n:"Sivulankku",e:"kehonpaino",u:"s"}, {n:"Ab wheel -rullaus",e:"kehonpaino"}, {n:"Pallof press taljassa",e:"talja"}, {n:"Vatsaliike laitteessa",e:"laite"}, {n:"Farmarikävely",e:"käsipaino"}]},
+  {g:"Kyynärvarret ja ote", items:[{n:"Ranteen koukistus tangolla",e:"tanko"}, {n:"Ranteen ojennus tangolla",e:"tanko"}, {n:"Tangosta riippuminen",e:"kehonpaino",u:"s",st:2.5}]},
 ];
 const MG = {};
 LIB.forEach(g => g.items.forEach(i => { MG[i.n] = g.g; }));
@@ -61,6 +83,25 @@ function snapDumbbell(w){
   if(w <= 10) return Math.floor(w);
   return Math.max(10, Math.floor(w / 2.5) * 2.5);
 }
+
+/* Ohjelman liike liikepankin rivistä. base = sarjat/toistot/paino oletuksiksi. */
+function defFromLib(item, base){
+  base = base || {sets:3, rmin:8, rmax:8, w:20};
+  if(item.warm) return {id:uid("x"), name:item.n, equip:"lämmittely", warm:true, min:item.min || 5,
+                        list:(item.list || []).slice(), sets:1, rmin:1, rmax:1, w:0, step:0};
+  const d = {id:uid("x"), name:item.n, equip:item.e, step:item.st || STEPS[item.e] || 2.5,
+             sets:base.sets, rmin:base.rmin, rmax:base.rmax, w:item.e === "kehonpaino" ? 0 : base.w};
+  if(item.u === "s") Object.assign(d, {unit:"s"}, TIME_R);
+  return d;
+}
+
+/* Yhden sarjan teksti: "87,5 kg × 8", "2,5 kg × 40 s", "40 s", "8 min". */
+function fmtSet(x, t){
+  if(isWarm(x)) return fmt(t.r || 0) + " min";
+  if(isTime(x)) return (t.w ? fmt(t.w) + " kg × " : "") + fmt(t.r || 0) + " s";
+  return fmt(t.w || 0) + " kg × " + fmt(t.r || 0);
+}
+const repUnit = x => isTime(x) ? " s" : "";
 
 /* Harjoitusmallin asetukset. Staattinen = nykyinen käytös, käyttäjä
    säätää haarukat itse. Automaattinen = kaksoisprogressio, kahden kerran
@@ -104,7 +145,7 @@ function seedPrograms(){
 
 function seed(){
   return {
-    v:7,
+    v:8,
     programs: seedPrograms(),
     sessions:[],
     active:null,
@@ -172,6 +213,19 @@ if(S.v < 7){
   S.v = 7; save();
 }
 
+/* v7 → v8: pitoliikkeet sekunteina. Tangosta riippuminen 2,5 kg askelin
+   (lisäpaino vyöllä). Historiaan ei kosketa. */
+if(S.v < 8){
+  S.programs.forEach(p => p.ex.forEach(x => {
+    const n = String(x.name).trim();
+    if(/^(tangosta riippuminen|lankku|sivulankku)$/i.test(n) && !x.unit){
+      Object.assign(x, {unit:"s"}, TIME_R);
+      if(/riippuminen/i.test(n)) x.step = 2.5;
+    }
+  }));
+  S.v = 8; save();
+}
+
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Tallennus ei onnistunut — muisti täynnä?"); } }
 
 /* ============ apurit ============ */
@@ -199,10 +253,11 @@ function clock(ms){
 }
 function e1rm(w,r){ return w>0 ? w*(1+r/30) : 0; }
 function volume(sess){
-  let v=0; sess.ex.forEach(x => x.sets.forEach(s => { if(s.ok) v += (s.w||0)*(s.r||0); })); return v;
+  let v=0; sess.ex.forEach(x => { if(isWarm(x) || isTime(x)) return;
+    x.sets.forEach(s => { if(s.ok) v += (s.w||0)*(s.r||0); }); }); return v;
 }
 function setsDone(sess){
-  let n=0; sess.ex.forEach(x => x.sets.forEach(s => { if(s.ok) n++; })); return n;
+  let n=0; sess.ex.forEach(x => { if(isWarm(x)) return; x.sets.forEach(s => { if(s.ok) n++; }); }); return n;
 }
 
 /* vahvistusdialogi — natiivi confirm() ei toimi upotetussa kehyksessä */
@@ -247,8 +302,10 @@ function historyFor(name){
     const x = s.ex.find(e => e.name===name && e.sets.some(t=>t.ok));
     if(x){
       const ok = x.sets.filter(t=>t.ok);
-      const top = ok.reduce((a,b)=> e1rm(b.w,b.r)>e1rm(a.w,a.r)?b:a, ok[0]);
-      out.push({date:s.date, sets:ok, top, e1:e1rm(top.w,top.r)});
+      /* Pito- ja lämmittelyliikkeissä "paras" = pisin aika, koska e1RM ei sovi niihin. */
+      const val = t => (isTime(x) || isWarm(x)) ? (t.r||0) : e1rm(t.w,t.r);
+      const top = ok.reduce((a,b)=> val(b)>val(a)?b:a, ok[0]);
+      out.push({date:s.date, sets:ok, top, e1:val(top), x:x});
     }
   });
   return out;
@@ -342,7 +399,7 @@ function autoPlan(def){
     const prev = h[1] && workW(h[1]) === wl ? h[1] : null;
     const q0 = qualifies(last), q1 = !!(prev && qualifies(prev));
     const ls = last.sets[last.sets.length - 1];
-    const amrapBig = q0 && ls && ls.a && (ls.r || 0) >= (last.rmax || rmax) + 3;
+    const amrapBig = q0 && ls && ls.a && (ls.r || 0) >= (last.rmax || rmax) + (isTime(def) ? 15 : 3);
 
     if(q0 && (!st.twoSession || q1 || amrapBig)){
       w = nextWeight(def, wl, 1); reps = fill(sets, rmin); up = true;
@@ -355,10 +412,11 @@ function autoPlan(def){
     } else {
       w = wl;
       reps = Array.from({length: sets}, (_, i) => {
-        const t = last.sets[i] ? (last.sets[i].r || 0) + 1 : rmin;
+        const t = last.sets[i] ? (last.sets[i].r || 0) + repInc(def) : rmin;
         return Math.max(rmin, Math.min(rmax, t));
       });
       reason = q0 ? "Yläraja saavutettu kerran — vielä kerran samalla painolla."
+                  : isTime(def) ? "Sama paino, tavoite 5 sekuntia pidempään per sarja."
                   : "Sama paino, tavoite yksi toisto enemmän per sarja.";
     }
   }
@@ -384,11 +442,29 @@ function autoPlan(def){
 function autoEntry(def){
   const pl = autoPlan(def);
   return {
-    id: def.id || uid("x"), name: def.name, equip: def.equip,
+    id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit,
     step: def.step || STEPS[def.equip] || 2.5,
     rmin: pl.rmin, rmax: pl.rmax, target: pl.sets,
     up: pl.up, down: pl.down, reason: pl.reason, amrap: pl.amrap, skip: false,
     sets: pl.reps.map((r, i) => ({w: pl.w, r: r, ok: false, a: pl.amrap && i === pl.reps.length - 1}))
+  };
+}
+
+/* Treenin liike-entry ohjelman liikkeestä: lämmittely, automaatti tai staattinen. */
+function makeEntry(def){
+  if(isWarm(def)){
+    const list = (def.list || []).slice();
+    return {id: def.id || uid("x"), name: def.name, equip: "lämmittely", warm: true,
+            list: list, chk: list.map(() => false), rmin: 1, rmax: 1, target: 1, skip: false,
+            sets: [{w: 0, r: def.min || 5, ok: false}]};
+  }
+  if(isAuto()) return autoEntry(def);
+  const sg = suggest(def);
+  return {
+    id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit,
+    step: def.step || STEPS[def.equip] || 2.5,
+    rmin: def.rmin, rmax: def.rmax, target: def.sets, up: sg.up, skip: false,
+    sets: Array.from({length: def.sets}, () => ({w: sg.w, r: def.rmax, ok: false}))
   };
 }
 
@@ -689,6 +765,7 @@ function quoteFor(sess){
    ennätys — ennätys syntyy vasta kun aiempi taso ylitetään. */
 
 function workSetWeight(x){
+  if(isWarm(x)) return 0;
   const sets = x.sets || [];
   if(!sets.length) return 0;
   const target = x.target || sets.length;
@@ -700,6 +777,7 @@ function workSetWeight(x){
 }
 
 function maxSetWeight(x){
+  if(isWarm(x) || isTime(x)) return 0;
   const sets = x.sets || [];
   if(!sets.length) return 0;
   if(!sets.every(s => (s.r||0) === 1)) return 0;
@@ -714,7 +792,7 @@ function recordsFor(name, exceptId){
     sess.ex.forEach(x => {
       if(x.name !== name) return;
       const w = workSetWeight(x);
-      if(w > 0 && (!set || w > set.w)) set = {w:w, date:sess.date, sets:x.sets.length, reps:x.rmax};
+      if(w > 0 && (!set || w > set.w)) set = {w:w, date:sess.date, sets:x.sets.length, reps:x.rmax, u:repUnit(x)};
       const m = maxSetWeight(x);
       if(m > 0 && (!max || m > max.w)) max = {w:m, date:sess.date, sets:x.sets.length};
     });
@@ -727,7 +805,7 @@ function prsFor(sess){
   sess.ex.forEach(x => {
     const prev = recordsFor(x.name, sess.id);
     const w = workSetWeight(x);
-    if(w > 0 && prev.set && w > prev.set.w) setPRs.push({name:x.name, w:w, sets:x.sets.length, reps:x.rmax});
+    if(w > 0 && prev.set && w > prev.set.w) setPRs.push({name:x.name, w:w, sets:x.sets.length, reps:x.rmax, u:repUnit(x)});
     const m = maxSetWeight(x);
     if(m > 0 && prev.max && m > prev.max.w) maxPRs.push({name:x.name, w:m});
   });
@@ -736,18 +814,21 @@ function prsFor(sess){
 
 function summaryText(sess){
   const sets = setsDone(sess);
-  const reps = sess.ex.reduce((a,x) => a + x.sets.reduce((b,s) => b + (s.r||0), 0), 0);
+  const lifts = sess.ex.filter(x => !isWarm(x));
+  const warms = sess.ex.filter(isWarm);
+  const reps = lifts.reduce((a,x) => isTime(x) ? a : a + x.sets.reduce((b,s) => b + (s.r||0), 0), 0);
   const d = new Date(sess.date).toLocaleDateString("fi-FI", {day:"numeric", month:"numeric", year:"numeric"});
   const prs = prsFor(sess);
   const q = quoteFor(sess);
 
   let t = "RAUTAKIRJA — " + sess.name + ", " + d + "\n";
-  t += sess.ex.length + " liikettä, " + sets + " sarjaa, " + reps + " toistoa\n";
+  if(warms.length) t += "Lämmittely: " + warms.map(x => x.name + " " + fmtSet(x, x.sets[0])).join(", ") + "\n";
+  t += lifts.length + " liikettä, " + sets + " sarjaa, " + reps + " toistoa\n";
   t += "Nostettu yhteensä " + fmt(volume(sess)) + " kg\n";
   if(prs.set.length){
     t += "\nUudet sarjaennätykset:\n";
     prs.set.forEach(p => {
-      t += "- " + p.name + " " + fmt(p.w) + " kg (" + p.sets + " × " + p.reps + ")\n";
+      t += "- " + p.name + " " + fmt(p.w) + " kg (" + p.sets + " × " + p.reps + (p.u||"") + ")\n";
     });
   }
   if(prs.max.length){
@@ -830,6 +911,7 @@ function weekLabel(key){
 
 /* Paras e1RM liikkeelle yhdessä treenissä. */
 function bestE1(x){
+  if(isWarm(x) || isTime(x)) return 0;
   return x.sets.reduce((a, s) => Math.max(a, e1rm(s.w || 0, s.r || 0)), 0);
 }
 
@@ -1069,12 +1151,14 @@ function renderBar(){
   const titles = {treeni: S.active ? S.active.name : "Rautakirja", historia:"Historia", ohjelmat:"Ohjelmat", data:"Asetukset"};
   bar.innerHTML = '<h1>'+esc(titles[route.tab])+'</h1>' + (route.tab==="treeni" && S.active ? '<span class="clock" id="clk">00:00</span>' : '');
   if(route.tab==="treeni" && S.active){
-    const tot = S.active.ex.reduce((a,x)=> a + (x.skip?0:x.sets.length), 0);
+    const lifts = S.active.ex.filter(x => !isWarm(x));
+    const tot = lifts.reduce((a,x)=> a + (x.skip?0:x.sets.length), 0);
     const dn  = setsDone(S.active);
-    const cur = S.active.ex.findIndex(x=>!x.skip && x.sets.some(s=>!s.ok));
+    const curX = S.active.ex.find(x=>!x.skip && x.sets.some(s=>!s.ok));
+    const cur = lifts.indexOf(curX);
     bp.innerHTML =
       '<div class="prog-track"><div class="prog-fill" style="width:'+(tot?dn/tot*100:0)+'%"></div></div>'+
-      '<div class="bar-sub"><span>Liike '+(cur<0?S.active.ex.length:cur+1)+' / '+S.active.ex.length+'</span>'+
+      '<div class="bar-sub"><span>'+(isWarm(curX) ? 'Lämmittely' : 'Liike '+(cur<0?lifts.length:cur+1)+' / '+lifts.length)+'</span>'+
       '<span class="num">'+dn+' / '+tot+' sarjaa</span></div>';
     tick();
   } else bp.innerHTML = "";
@@ -1153,7 +1237,8 @@ function viewHome(v){
         '<span class="eyebrow">'+esc(p.est||"")+'</span></div>'+
       '<h2 style="margin:4px 0 6px">'+esc(p.name)+'</h2>'+
       '<div style="font-size:13.5px;color:var(--dim);margin-bottom:12px">'+
-        p.ex.length+' liikettä · '+p.ex.reduce((a,x)=>a+x.sets,0)+' sarjaa'+
+        p.ex.filter(x=>!isWarm(x)).length+' liikettä · '+p.ex.reduce((a,x)=>a+(isWarm(x)?0:x.sets),0)+' sarjaa'+
+        (p.ex.some(isWarm)?' · lämmittely':'')+
         (L?' · viimeksi '+dateFi(L.date).toLowerCase():' · ei vielä treenattu')+'</div>'+
       '<button class="btn wide '+(i===next?"primary":"")+'" data-start="'+p.id+'">Aloita treeni</button>';
     wrap.appendChild(c);
@@ -1180,15 +1265,7 @@ function startWorkout(pid){
   const p = S.programs.find(x=>x.id===pid); if(!p) return;
   S.active = {
     id: uid("s"), programId:p.id, name:p.name, date:new Date().toISOString(), startedAt:Date.now(),
-    ex: p.ex.map(e => {
-      if(isAuto()) return autoEntry(e);
-      const sg = suggest(e);
-      return {
-        id:e.id, name:e.name, equip:e.equip, step:e.step||STEPS[e.equip]||2.5,
-        rmin:e.rmin, rmax:e.rmax, target:e.sets, up:sg.up, skip:false,
-        sets: Array.from({length:e.sets}, () => ({w:sg.w, r:e.rmax, ok:false}))
-      };
-    }),
+    ex: p.ex.map(makeEntry),
     note:""
   };
   if(isAuto()){
@@ -1211,8 +1288,9 @@ function viewWorkout(v){
 
     const okSets = x.sets.filter(s=>s.ok);
     const summary = x.skip ? "Ohitettu"
-      : okSets.length ? okSets.map(s=>fmt(s.r)).join(" · ") + "  @ " + fmt(okSets[okSets.length-1].w) + " kg"
-      : x.target + " × " + reps(x) + " · " + fmt(x.sets[0].w) + " kg";
+      : isWarm(x) ? "Lämmittely · " + fmtSet(x, x.sets[0])
+      : okSets.length ? okSets.map(s=>fmt(s.r)).join(" · ") + repUnit(x) + "  @ " + fmt(okSets[okSets.length-1].w) + " kg"
+      : x.target + " × " + reps(x) + repUnit(x) + " · " + fmt(x.sets[0].w) + " kg";
 
     d.appendChild(el(
       '<button class="ex-head" data-open="'+i+'">'+
@@ -1223,37 +1301,61 @@ function viewWorkout(v){
           (x.down && !okSets.length ? '<span class="pill">Kevennä</span>' : '')+'</span></span>'+
       '</button>'));
 
-    if(open && !x.skip){
+    if(open && !x.skip && isWarm(x)){
+      const body = el('<div class="ex-body"></div>');
+      const list = x.list || [];
+      if(list.length){
+        body.appendChild(el('<div class="wlist">'+list.map((it,j) =>
+          '<button class="witem'+(x.chk && x.chk[j]?' on':'')+'" data-wchk="'+i+'" data-wj="'+j+'">'+
+            '<span class="wbox">'+(x.chk && x.chk[j]?I.check:'')+'</span><span>'+esc(it)+'</span></button>').join("")+'</div>'));
+      } else {
+        body.appendChild(el('<div class="hint"><span>Ei muistilistaa. Voit lisätä sen ohjelman muokkauksessa.</span></div>'));
+      }
+      const s0 = x.sets[0];
+      body.appendChild(el(
+        '<div class="setrow first one'+(s0.ok?" ok":"")+'" data-ex="'+i+'" data-set="0">'+
+          '<div class="sn">1</div>'+
+          '<div class="field"><span>Kesto min</span><div class="stepper">'+
+            '<button class="step" data-d="-1" data-f="r" aria-label="Vähennä minuutteja">−</button>'+
+            '<input inputmode="decimal" data-f="r" value="'+fmt(s0.r)+'">'+
+            '<button class="step" data-d="1" data-f="r" aria-label="Lisää minuutteja">+</button></div></div>'+
+          '<button class="chk" data-chk="1" aria-label="Merkitse lämmittely tehdyksi">'+I.check+'</button>'+
+        '</div>'));
+      body.appendChild(el('<div class="rowtools"><button class="btn sm ghost" data-skip="'+i+'" style="margin-left:auto">Ohita</button></div>'));
+      d.appendChild(body);
+    }
+    else if(open && !x.skip){
       const body = el('<div class="ex-body"></div>');
       const L = lastFor(x.name, A.id);
       if(x.reason){
         body.appendChild(el('<div class="hint'+(x.up?" up":x.down?" down":"")+'">'+
-          '<span class="num">'+x.sets.length+' × '+(x.rmin===x.rmax?x.rmin:x.rmin+'–'+x.rmax)+'</span>'+
+          '<span class="num">'+x.sets.length+' × '+(x.rmin===x.rmax?x.rmin:x.rmin+'–'+x.rmax)+repUnit(x)+'</span>'+
           '<span>'+esc(x.reason)+'</span>'+
           (L ? '<span style="width:100%;font-size:12.5px">Viimeksi: <span class="num">'+
-                L.ex.sets.filter(t=>t.ok).map(t=>fmt(t.r)).join(" · ")+' × '+
+                L.ex.sets.filter(t=>t.ok).map(t=>fmt(t.r)).join(" · ")+repUnit(x)+' × '+
                 fmt(L.ex.sets.filter(t=>t.ok).slice(-1)[0].w)+' kg</span></span>' : '')+
-          (x.amrap ? '<span style="width:100%;font-size:12.5px"><b>Viimeinen sarja:</b> niin monta kuin tekniikka kestää.</span>' : '')+
+          (x.amrap ? '<span style="width:100%;font-size:12.5px"><b>Viimeinen sarja:</b> '+
+            (isTime(x) ? 'niin pitkään kuin ote ja tekniikka kestävät.' : 'niin monta kuin tekniikka kestää.')+'</span>' : '')+
         '</div>'));
       } else if(L){
         const ok = L.ex.sets.filter(t=>t.ok);
         body.appendChild(el('<div class="hint'+(x.up?" up":"")+'">'+
           '<span>Viimeksi '+dateFi(L.sess.date).toLowerCase()+':</span>'+
-          '<span class="num">'+ok.map(t=>fmt(t.r)).join(" · ")+' × '+fmt(ok[ok.length-1].w)+' kg</span>'+
+          '<span class="num">'+ok.map(t=>fmt(t.r)).join(" · ")+repUnit(x)+' × '+fmt(ok[ok.length-1].w)+' kg</span>'+
           (x.up?'<b>↑ tavoite täynnä, nosta painoa</b>':'')+'</div>'));
       } else {
-        body.appendChild(el('<div class="hint"><span>Tavoite</span><span class="num">'+x.target+' × '+reps(x)+'</span></div>'));
+        body.appendChild(el('<div class="hint"><span>Tavoite</span><span class="num">'+x.target+' × '+reps(x)+repUnit(x)+'</span></div>'));
       }
 
       x.sets.forEach((s,j) => {
         body.appendChild(el(
           '<div class="setrow'+(j===0?" first":"")+(s.ok?" ok":"")+(s.a?" amrap":"")+'" data-ex="'+i+'" data-set="'+j+'">'+
             '<div class="sn">'+(s.a?'<span class="max">MAX</span>':(j+1))+'</div>'+
-            '<div class="field"><span>Paino kg'+(x.equip==="käsipaino"?" / käsi":"")+'</span><div class="stepper">'+
+            '<div class="field"><span>'+(x.equip==="kehonpaino"?"Lisäpaino kg":"Paino kg")+(x.equip==="käsipaino"?" / käsi":"")+'</span><div class="stepper">'+
               '<button class="step" data-d="-1" data-f="w" aria-label="Vähennä painoa">−</button>'+
               '<input inputmode="decimal" data-f="w" value="'+fmt(s.w)+'">'+
               '<button class="step" data-d="1" data-f="w" aria-label="Lisää painoa">+</button></div></div>'+
-            '<div class="field"><span>Toistot</span><div class="stepper">'+
+            '<div class="field"><span>'+(isTime(x)?"Sekunnit":"Toistot")+'</span><div class="stepper">'+
               '<button class="step" data-d="-1" data-f="r" aria-label="Vähennä toistoja">−</button>'+
               '<input inputmode="numeric" data-f="r" value="'+s.r+'">'+
               '<button class="step" data-d="1" data-f="r" aria-label="Lisää toistoja">+</button></div></div>'+
@@ -1317,12 +1419,14 @@ function viewHistory(v){
         const best = h.reduce((a,b)=> b.e1>a.e1?b:a, h[0]);
         const vals = h.slice(-8).map(x=>x.e1); const mx = Math.max(...vals,1);
         const rec = recordsFor(n);
-        const tag = rec.set ? 'sarjaennätys '+fmt(rec.set.w)+' kg'
+        const tag = isWarm(last.x) ? 'lämmittely'
+                  : rec.set ? 'sarjaennätys '+fmt(rec.set.w)+' kg'
                   : rec.max ? 'maksimi '+fmt(rec.max.w)+' kg'
+                  : isTime(last.x) ? 'pisin '+fmt(best.e1)+' s'
                   : 'ei vielä ennätystä';
         return '<button class="rowlink" data-exname="'+esc(n)+'">'+
           '<div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(n)+'</div>'+
-          '<div style="font-size:13px;color:var(--dim)">Viimeksi '+fmt(last.top.w)+' kg × '+last.top.r+
+          '<div style="font-size:13px;color:var(--dim)">Viimeksi '+fmtSet(last.x, last.top)+
           ' · '+tag+'</div></div>'+
           '<div class="spark" style="width:56px">'+vals.map(x=>'<i style="height:'+Math.max(8,x/mx*100)+'%"></i>').join("")+'</div>'+
           '<span class="chev">'+I.chev+'</span></button>';
@@ -1588,7 +1692,7 @@ function openSheet(){
       '<div class="pad" style="border-top:1px solid var(--line)">'+
         '<div style="font-weight:600;margin-bottom:5px">'+esc(x.name)+'</div>'+
         x.sets.map((t,j)=>'<div class="kv"><span class="num" style="color:var(--faint)">'+(j+1)+'</span>'+
-          '<span class="num">'+fmt(t.w)+' kg × '+t.r+'</span></div>').join("")+
+          '<span class="num">'+fmtSet(x, t)+'</span></div>').join("")+
       '</div>').join("");
     body.appendChild(c);
     body.appendChild(shareCard(sess));
@@ -1610,15 +1714,20 @@ function openSheet(){
              '<div style="font-size:12.5px;color:var(--dim)">'+sub(r)+'</div>'
            : '<div style="font-size:14px;color:var(--faint);margin-top:6px">Ei vielä</div>')+
       '</div>';
-    body.appendChild(el('<div class="grid2">'+
-      card('Sarjaennätys', rec.set, r => r.sets+' × '+r.reps+' · '+dateFi(r.date))+
-      card('Maksimiennätys', rec.max, r => '1 toisto · '+dateFi(r.date))+
+    const hx = h.length ? h[h.length-1].x : null;
+    if(!isWarm(hx)) body.appendChild(el('<div class="grid2">'+
+      card('Sarjaennätys', rec.set, r => r.sets+' × '+r.reps+(r.u||'')+' · '+dateFi(r.date))+
+      (isTime(hx)
+        ? '<div class="card pad"><div class="eyebrow">Pisin pito</div>'+
+            (h.length ? '<div class="num" style="font-size:24px;margin-top:2px">'+fmt(Math.max(...h.map(r=>r.e1)))+' s</div>'
+                      : '<div style="font-size:14px;color:var(--faint);margin-top:6px">Ei vielä</div>')+'</div>'
+        : card('Maksimiennätys', rec.max, r => '1 toisto · '+dateFi(r.date)))+
     '</div>'));
     const c = el('<div class="card"></div>');
     c.innerHTML = [...h].reverse().map(r =>
       '<div class="pad" style="border-top:1px solid var(--line);display:flex;gap:12px;align-items:baseline">'+
         '<div style="flex:none;width:74px;font-size:13px;color:var(--dim)">'+dateFi(r.date)+'</div>'+
-        '<div class="num" style="flex:1">'+r.sets.map(t=>fmt(t.w)+"×"+t.r).join("   ")+'</div>'+
+        '<div class="num" style="flex:1">'+r.sets.map(t=> isWarm(r.x)||isTime(r.x) ? fmtSet(r.x,t) : fmt(t.w)+"×"+t.r).join("   ")+'</div>'+
       '</div>').join("");
     body.appendChild(c);
   }
@@ -1633,17 +1742,34 @@ function openSheet(){
         '<label class="f"><span class="eyebrow">Arvioitu kesto</span><input data-p="est" value="'+esc(p.est||"")+'" placeholder="esim. 45–55 min"></label>'+
       '</div>'));
     p.ex.forEach((x,i) => {
-      body.appendChild(el(
-        '<div class="card pad stack" data-exi="'+i+'">'+
+      const head =
           '<div style="display:flex;align-items:center;gap:8px">'+
             '<span class="idx">'+(i+1)+'</span>'+
             '<button class="btn sm ghost" data-mv="'+i+'" data-dir="-1" '+(i===0?"disabled":"")+' aria-label="Siirrä ylös">↑</button>'+
             '<button class="btn sm ghost" data-mv="'+i+'" data-dir="1" '+(i===p.ex.length-1?"disabled":"")+' aria-label="Siirrä alas">↓</button>'+
             '<button class="btn sm ghost" data-delex="'+i+'" style="margin-left:auto">Poista</button>'+
           '</div>'+
-          '<label class="f"><span class="eyebrow">Liike'+(MG[x.name]?" · "+esc(MG[x.name]):"")+'</span>'+
+          '<label class="f"><span class="eyebrow">'+(isWarm(x)?'Lämmittely':'Liike'+(MG[x.name]?" · "+esc(MG[x.name]):""))+'</span>'+
             '<div style="display:flex;gap:8px"><input data-x="name" value="'+esc(x.name)+'">'+
-            '<button class="btn sm" data-swap="'+i+'" style="flex:none">Vaihda</button></div></label>'+
+            '<button class="btn sm" data-swap="'+i+'" style="flex:none">Vaihda</button></div></label>';
+      if(isWarm(x)){
+        body.appendChild(el(
+          '<div class="card pad stack" data-exi="'+i+'">'+head+
+            '<div class="grid2">'+
+              '<label class="f"><span class="eyebrow">Väline</span><select data-x="equip">'+
+                EQUIPS.map(q=>'<option '+(q===x.equip?"selected":"")+'>'+q+'</option>').join("")+'</select></label>'+
+              '<label class="f"><span class="eyebrow">Kesto min</span><input inputmode="decimal" data-x="min" value="'+fmt(x.min||5)+'"></label>'+
+            '</div>'+
+            '<label class="f"><span class="eyebrow">Muistilista · yksi kohta per rivi</span>'+
+              '<textarea data-x="list" rows="'+Math.max(3,(x.list||[]).length+1)+'" placeholder="esim. Käsien pyöritys 10 + 10">'+
+              esc((x.list||[]).join("\n"))+'</textarea></label>'+
+          '</div>'));
+        return;
+      }
+      const tl = isTime(x) ? "Sekunnit" : "Toistot";
+      body.appendChild(el(
+        '<div class="card pad stack" data-exi="'+i+'">'+
+          head+
           '<div class="grid2">'+
             '<label class="f"><span class="eyebrow">Väline</span><select data-x="equip">'+
               EQUIPS.map(q=>'<option '+(q===x.equip?"selected":"")+'>'+q+'</option>').join("")+'</select></label>'+
@@ -1651,12 +1777,15 @@ function openSheet(){
           '</div>'+
           '<div class="grid2">'+
             '<label class="f"><span class="eyebrow">Sarjat</span><input inputmode="numeric" data-x="sets" value="'+x.sets+'"></label>'+
-            '<label class="f"><span class="eyebrow">Aloituspaino kg'+(x.equip==="käsipaino"?" / käsi":"")+'</span><input inputmode="decimal" data-x="w" value="'+fmt(x.w)+'"></label>'+
+            '<label class="f"><span class="eyebrow">'+(x.equip==="kehonpaino"?"Lisäpaino kg":"Aloituspaino kg")+(x.equip==="käsipaino"?" / käsi":"")+'</span><input inputmode="decimal" data-x="w" value="'+fmt(x.w)+'"></label>'+
           '</div>'+
           '<div class="grid2">'+
-            '<label class="f"><span class="eyebrow">Toistot väh.</span><input inputmode="numeric" data-x="rmin" value="'+x.rmin+'"></label>'+
-            '<label class="f"><span class="eyebrow">Toistot enint.</span><input inputmode="numeric" data-x="rmax" value="'+x.rmax+'"></label>'+
+            '<label class="f"><span class="eyebrow">'+tl+' väh.</span><input inputmode="numeric" data-x="rmin" value="'+x.rmin+'"></label>'+
+            '<label class="f"><span class="eyebrow">'+tl+' enint.</span><input inputmode="numeric" data-x="rmax" value="'+x.rmax+'"></label>'+
           '</div>'+
+          '<label class="f"><span class="eyebrow">Mittari</span><select data-x="unit">'+
+            '<option value=""'+(isTime(x)?'':' selected')+'>toistot</option>'+
+            '<option value="s"'+(isTime(x)?' selected':'')+'>sekunnit (pito)</option></select></label>'+
           (isAuto()
             ? '<div class="autobox">'+
                 '<div class="eyebrow">Automaattitila</div>'+
@@ -1713,7 +1842,7 @@ function drawPicker(q){
       n++;
       html += '<button class="rowlink" style="border-top:0;padding-top:10px;padding-bottom:10px" data-pick="'+esc(i.n)+'">'+
         '<span style="flex:1;min-width:0;font-weight:600;line-height:1.25">'+esc(i.n)+'</span>'+
-        (have.has(i.n) ? '<span class="pill good">Ohjelmassa</span>' : '<span class="pill">'+esc(i.e)+'</span>')+
+        (have.has(i.n) ? '<span class="pill good">Ohjelmassa</span>' : '<span class="pill">'+esc(i.u==="s" ? i.e+" · s" : i.e)+'</span>')+
         '</button>';
     });
   });
@@ -1761,6 +1890,11 @@ document.addEventListener("click", async e => {
     if(x.sets.every(q=>q.ok)) route.openEx = null;
     save(); render(); return;
   }
+  if(d.wchk!==undefined){
+    const x = S.active.ex[+d.wchk], j = +d.wj;
+    x.chk = x.chk || (x.list||[]).map(()=>false);
+    x.chk[j] = !x.chk[j]; save(); render(); return;
+  }
   if(d.addset!==undefined){ const x=S.active.ex[+d.addset]; const last=x.sets[x.sets.length-1]; x.sets.push({w:last?last.w:0, r:last?last.r:x.rmax, ok:false}); reAmrap(x); save(); render(); return; }
   if(d.delset!==undefined){ const x=S.active.ex[+d.delset]; for(let i=x.sets.length-1;i>=0;i--){ if(!x.sets[i].ok){ x.sets.splice(i,1); break; } } reAmrap(x); save(); render(); return; }
   if(d.skip!==undefined){ S.active.ex[+d.skip].skip=true; route.openEx=null; save(); render(); return; }
@@ -1791,18 +1925,8 @@ document.addEventListener("click", async e => {
     /* Liike kesken treenin: lisätään vain tähän treeniin, ei ohjelmaan. */
     if(st.target === "workout"){
       if(item && S.active){
-        const step = STEPS[item.e] || 2.5;
-        if(isAuto()){
-          S.active.ex.push(autoEntry({name:item.n, equip:item.e, step:step, sets:S.settings.sets||3, w:0}));
-        } else {
-          const st = S.settings;
-          const sg = suggest({name:item.n, equip:item.e, step:step, rmax:st.rmax, w:0});
-          S.active.ex.push({
-            id: uid("x"), name: item.n, equip: item.e, step: step,
-            rmin: st.rmin, rmax: st.rmax, target: st.sets, up: sg.up, skip: false,
-            sets: Array.from({length:st.sets}, () => ({w: sg.w, r: st.rmax, ok: false}))
-          });
-        }
+        const st = S.settings;
+        S.active.ex.push(makeEntry(defFromLib(item, {sets:st.sets||3, rmin:st.rmin, rmax:st.rmax, w:0})));
         route.openEx = S.active.ex.length - 1;
         save();
       }
@@ -1813,9 +1937,17 @@ document.addEventListener("click", async e => {
 
     const p = S.programs.find(x=>x.id===st.back.id);
     if(p && item){
-      const step = STEPS[item.e] || 2.5;
-      if(st.exi===null){ p.ex.push({id:uid("x"), name:item.n, equip:item.e, step:step, sets:3, rmin:8, rmax:8, w:20}); }
-      else { const x = p.ex[st.exi]; if(x){ x.name=item.n; x.equip=item.e; x.step=step; } }
+      if(st.exi===null){ p.ex.push(defFromLib(item)); }
+      else {
+        const x = p.ex[st.exi];
+        if(x){
+          /* Lajityyppi vaihtuu (lämmittely ↔ liike, toistot ↔ sekunnit) → uudet oletukset. */
+          if(!!item.warm !== isWarm(x) || (item.u==="s") !== isTime(x)){
+            p.ex[st.exi] = Object.assign(defFromLib(item, {sets:x.sets||3, rmin:x.rmin||8, rmax:x.rmax||8, w:x.w||0}), {id:x.id});
+          } else if(item.warm){ x.name = item.n; x.min = item.min || x.min; x.list = (item.list||[]).slice(); }
+          else { x.name=item.n; x.equip=item.e; x.step=item.st || STEPS[item.e] || 2.5; }
+        }
+      }
       save();
     }
     route.sheet = st.back; openSheet(); return;
@@ -1866,7 +1998,7 @@ document.addEventListener("click", async e => {
     const st = S.settings;
     if(!await ask("Asetetaanko "+st.sets+" × "+(st.rmin===st.rmax?st.rmin:st.rmin+"–"+st.rmax)+
                   " kaikkiin liikkeisiin kaikissa ohjelmissa?","Aseta")) return;
-    S.programs.forEach(p => p.ex.forEach(x => { x.sets = st.sets; x.rmin = st.rmin; x.rmax = st.rmax; }));
+    S.programs.forEach(p => p.ex.forEach(x => { if(isWarm(x) || isTime(x)) return; x.sets = st.sets; x.rmin = st.rmin; x.rmax = st.rmax; }));
     save(); render(); toast("Asetettu kaikkiin liikkeisiin.");
     return;
   }
@@ -1895,7 +2027,7 @@ document.addEventListener("click", e => {
   const x = S.active.ex[+row.dataset.ex], s = x.sets[+row.dataset.set];
   const inp = row.querySelector('input[data-f="'+f+'"]');
   let val = parseFloat(String(inp.value).replace(",",".")); if(isNaN(val)) val = 0;
-  val = f==="w" ? nextWeight(x, val, dir) : Math.max(0, val + dir);
+  val = f==="w" ? nextWeight(x, val, dir) : Math.max(0, val + dir * repInc(x));
   s[f] = val; inp.value = f==="w" ? fmt(val) : val;
   save();
 });
@@ -1937,6 +2069,17 @@ document.addEventListener("change", async e => {
     save(); render();
     return;
   }
+  if(inp.dataset && (inp.dataset.x === "equip" || inp.dataset.x === "unit") && route.sheet && route.sheet.type === "program"){
+    const p = curProg(); if(!p) return;
+    const box = inp.closest("[data-exi]"); const x = box && p.ex[+box.dataset.exi];
+    const wasTime = isTime(x), wasWarm = isWarm(x);
+    readProgForm(p);
+    if(x && wasWarm && !isWarm(x)) Object.assign(x, {sets:3, rmin:8, rmax:8, w:0, step:STEPS[x.equip] || 2.5});
+    /* Toistoista sekunteihin: 8 sekunnin pito ei ole järkevä tavoite. */
+    if(x && isTime(x) && !wasTime && x.rmax <= 20) Object.assign(x, TIME_R);
+    if(x && !isTime(x) && wasTime && x.rmin >= 20){ x.rmin = 8; x.rmax = 8; delete x.autoRmin; delete x.autoRmax; }
+    save(); openSheet(); return;
+  }
   const row = inp.closest && inp.closest(".setrow");
   if(row && inp.dataset.f){
     const x = S.active.ex[+row.dataset.ex], s = x.sets[+row.dataset.set];
@@ -1955,11 +2098,20 @@ function readProgForm(p){
     box.querySelectorAll("[data-x]").forEach(i => {
       const k = i.dataset.x;
       if(k==="name" || k==="equip") x[k] = i.value;
+      else if(k==="unit"){ if(i.value === "s") x.unit = "s"; else delete x.unit; }
+      else if(k==="list") x.list = i.value.split("\n").map(t => t.trim()).filter(Boolean);
       else { let v = parseFloat(String(i.value).replace(",",".")); x[k] = isNaN(v)?0:v; }
     });
     box.querySelectorAll("[data-xc]").forEach(i => {
       if(i.dataset.xc === "amrap") x.noAmrap = !i.checked;
     });
+    if(x.equip === "lämmittely"){
+      x.warm = true; delete x.unit;
+      x.min = Math.max(1, x.min || 5); x.list = x.list || [];
+      x.sets = 1; x.rmin = 1; x.rmax = 1; x.w = 0; x.step = 0;
+      return;
+    }
+    delete x.warm; delete x.min; delete x.list;
     if(!x.step) x.step = STEPS[x.equip] || 2.5;
     x.sets = Math.max(1, Math.round(x.sets));
     x.rmin = Math.max(1, Math.round(x.rmin)); x.rmax = Math.max(x.rmin, Math.round(x.rmax));

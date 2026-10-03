@@ -61,5 +61,8 @@ Aja aina ennen kuin muutokset viedään GitHubiin.
 ## Liikepankki
 
 Sovelluksen liikkeet ovat `app.js`:ssä `LIB`-vakiona, ryhmiteltynä lihasryhmittäin.
+Ensimmäinen ryhmä on alkulämmittely: kesto minuutteina ja muistilista, jota voi muokata
+ohjelman muokkauksessa. Lämmittelyt eivät kuulu volyymiin, ennätyksiin eivätkä indekseihin.
+Pitoliikkeet (`unit: "s"`, esim. tangosta riippuminen ja lankku) kirjataan sekunteina.
 Muokattava lähdeaineisto on projektikansion `Liikepankki.md`; jos sitä muuttaa, `LIB` on
 generoitava uudelleen.
