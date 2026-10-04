@@ -55,8 +55,17 @@ node tests/run.js
 ```
 
 Käynnistää paikallisen palvelimen ja ajaa koko käyttöpolun oikeassa selaimessa:
-painoruudukko, ennätyslogiikka, kehitysindeksit, kuvaaja ja asetukset.
-Aja aina ennen kuin muutokset viedään GitHubiin.
+painoruudukko, ennätyslogiikka, kehitysindeksit, kuvaaja, asetukset, automaattimoottori,
+lämmittelyt, pikaohjelma. Aja aina ennen kuin muutokset viedään GitHubiin.
+
+```
+node tests/sim.js
+```
+
+Stressitesti: simuloi nostajan 8–12 viikon treenihistorioita (tasainen kehitys, tasanne,
+romahdus, tauko, eri asetukset) automaattimoottorin ja indeksien läpi ja tarkistaa
+invariantit (ei NaN, enintään askel per treeni, kevennys ei laske indeksiä, turvaventtiili
+toimii). Aja kun moottorin tai indeksien logiikkaa muutetaan.
 
 ## Pikaohjelma
 

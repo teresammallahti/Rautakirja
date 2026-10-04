@@ -435,8 +435,16 @@ function autoPlan(def){
         ? "Viimeinen sarja meni reilusti yli: paino nousee heti."
         : "Yläraja saavutettu" + (st.twoSession ? " kahdesti peräkkäin" : "") + ": paino nousee.";
     } else if(underRange(last) && prev && underRange(prev)){
-      w = nextWeight(def, wl, -1); reps = fill(sets, rmin); down = true;
-      reason = "Kahdesti alle haarukan: paino kevenee askeleen.";
+      w = nextWeight(def, wl, -1); down = true;
+      /* Jos tällä painolla on jo tehty, jatketaan siitä mihin jäätiin eikä
+         alarajalta — muuten iso askel (käsipaino 12,5 → 15) jättäisi
+         kiertämään samaa kehää. */
+      const known = h.find(x => workW(x) === w && !underRange(x));
+      reps = known
+        ? Array.from({length: sets}, (_, i) => Math.max(rmin, Math.min(rmax, known.sets[i] ? (known.sets[i].r || rmin) : rmin)))
+        : fill(sets, rmin);
+      reason = known ? "Kahdesti alle haarukan: takaisin edelliseen painoon, jatka siitä mihin jäit."
+                     : "Kahdesti alle haarukan: paino kevenee askeleen.";
     } else {
       w = wl;
       reps = Array.from({length: sets}, (_, i) => {
@@ -959,7 +967,10 @@ function chartGroups(){
    joilla ryhmää on treenattu — muuten väliviikko näkyisi −100 %:n työmääränä. */
 function indexSeries(mg){
   if(!S.sessions.length) return [];
-  const sorted = [...S.sessions].sort((a, b) => new Date(a.date) - new Date(b.date));
+  /* Kevennysviikot pois: puolitetut sarjat alarajan toistoilla painaisivat
+     sekä voima- että työmääräindeksiä, vaikka mikään ei ole heikentynyt. */
+  const sorted = S.sessions.filter(s => !s.deload).sort((a, b) => new Date(a.date) - new Date(b.date));
+  if(!sorted.length) return [];
   const inG = x => !mg || groupOf(x.name) === mg;
 
   /* viikko -> { vol, best: {liike: e1RM} } */
@@ -2367,6 +2378,7 @@ function readProgForm(p){
       return;
     }
     delete x.warm; delete x.min; delete x.list;
+    if(x.equip === "käsipaino"){ x.w = snapDumbbell(x.w); x.step = 1; }
     if(!x.step) x.step = STEPS[x.equip] || 2.5;
     x.sets = Math.max(1, Math.round(x.sets));
     x.rmin = Math.max(1, Math.round(x.rmin)); x.rmax = Math.max(x.rmin, Math.round(x.rmax));
