@@ -24,6 +24,7 @@ jakovalikon, työpöydällä tiedosto latautuu normaalisti.
 | `sw.js` | Palvelutyöntekijä — appi latautuu myös ilman verkkoa |
 | `manifest.webmanifest` | Tekee sivusta asennettavan sovelluksen |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` | Aloitusnäytön kuvakkeet |
+| `brand/` | Palveluiden logot varmuuskopiopainikkeisiin (`onedrive.svg`, `gdrive.svg`); puuttuessa yleinen kuvake |
 | `tests/run.js`, `tests/sim.js` | Selaintestit ja stressitesti (eivät ole osa sivustoa) |
 
 Kaikki polut ovat suhteellisia (`./`), koska GitHub Pages tarjoilee sivuston alikansiosta.

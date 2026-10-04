@@ -10,7 +10,8 @@ const I = {
   chev:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   back:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   cog:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.6 1.6 0 0 0 15 19.4a1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.09A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.09A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.32-1.77l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.09A1.6 1.6 0 0 0 15 4.6a1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9v0a1.6 1.6 0 0 0 1.47.97H21a2 2 0 1 1 0 4h-.09a1.6 1.6 0 0 0-1.47.97z"/></svg>',
-  x:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+  x:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 9.2 3.5 3.5 0 0 1 17.5 18H7z"/><path d="M12 15v-4M10 13l2-2 2 2"/></svg>'
 };
 
 /* ============ data ============ */
@@ -327,6 +328,23 @@ function toast(msg){
   document.body.appendChild(t);
   clearTimeout(toastT); toastT = setTimeout(()=>t.remove(), 2600);
 }
+
+/* Varmuuskopiopainike palvelun logolla. Logot ovat kansiossa brand/
+   (onedrive.svg, gdrive.svg) — ne ovat palveluiden omia merkkejä, eikä
+   niitä piirretä itse. Jos tiedosto puuttuu, näytetään yleinen pilvi-
+   kuvake ja palvelun nimi pienellä, jotta painike pysyy ymmärrettävänä. */
+const BRAND = {onedrive:{file:"./brand/onedrive.svg", name:"OneDrive"}, gdrive:{file:"./brand/gdrive.svg", name:"Google Drive"}};
+function brandBtn(service, attrs, label, cls){
+  const b = BRAND[service];
+  return '<button class="btn '+(cls||"")+' bbtn" '+attrs+'>'+
+    '<span class="blogo" data-brand="'+service+'"><img src="'+b.file+'" alt="'+esc(b.name)+'">'+I.cloud+'</span>'+
+    '<span>'+esc(label)+'<small>'+esc(b.name)+'</small></span></button>';
+}
+/* Jos logotiedosto ei lataudu, vaihdetaan yleiseen kuvakkeeseen. */
+document.addEventListener("error", e => {
+  const img = e.target;
+  if(img && img.tagName === "IMG" && img.closest(".blogo")) img.closest(".blogo").classList.add("nologo");
+}, true);
 
 /* viimeisin tehty suoritus liikkeelle (nimen perusteella) */
 function lastFor(name, beforeId){
@@ -1314,7 +1332,7 @@ function viewHome(v){
       '<div class="card warn pad"><div class="eyebrow">Varmuuskopio</div>'+
       '<p style="margin:6px 0 12px">Viimeisimmän varmuuskopion jälkeen on kertynyt <b>'+sinceBackup+' treeniä</b>. '+
       'Vie data OneDriveen ennen kuin puhelimen selaimen muisti tyhjenee.</p>'+
-      '<button class="btn wide" data-backup="1">Varmuuskopioi nyt</button></div>'));
+      brandBtn("onedrive", 'data-backup="1"', "Varmuuskopioi", "wide")+'</div>'));
   }
 
   /* Seuraava vuorossa: rotaatiossa olevista se, jota on treenattu vähiten
@@ -1867,7 +1885,7 @@ function viewData(v){
     dBody = '<p style="font-size:13.5px;color:var(--dim);margin:6px 0 12px">Varmuuskopio tallentuu automaattisesti '+
             'treenin jälkeen omaan Driveesi piilotettuun kansioon, jonka vain tämä appi näkee. '+
             'Uudella puhelimella data palautuu kirjautumalla.</p>'+
-            '<button class="btn wide primary" data-dconnect="1">Yhdistä Google Drive</button>';
+            brandBtn("gdrive", 'data-dconnect="1"', "Yhdistä", "wide primary");
   } else {
     dBody =
       '<div class="kv"><span>Viimeisin tallennus</span><span class="num">'+
@@ -1875,8 +1893,7 @@ function viewData(v){
       '<div class="kv"><span>Treenejä sen jälkeen</span><span class="num">'+Math.max(0,dSince)+'</span></div>'+
       (S.meta.driveNote ? '<div class="hint" style="margin:12px 0 0;border-left-color:var(--gold)">'+esc(S.meta.driveNote)+'</div>' : '')+
       (S.meta.driveErr ? '<div class="hint" style="margin:12px 0 0;border-left-color:var(--gold)">'+esc(S.meta.driveErr)+'</div>' : '')+
-      '<button class="btn wide primary" data-dsync="1" style="margin-top:13px"'+(gBusy?' disabled':'')+'>'+
-        (gBusy?'Tallennetaan…':'Tallenna pilveen')+'</button>'+
+      brandBtn("gdrive", 'data-dsync="1" style="margin-top:13px"'+(gBusy?' disabled':''), gBusy?"Tallennetaan…":"Varmuuskopioi", "wide primary")+
       '<div class="grid2" style="margin-top:9px">'+
         '<button class="btn" data-drestore="1">Palauta pilvestä</button>'+
         '<button class="btn ghost" data-ddisconnect="1">Katkaise</button>'+
@@ -1897,7 +1914,7 @@ function viewData(v){
         (S.meta.lastBackup ? dateFi(S.meta.lastBackup) : "ei koskaan")+'</span></div>'+
       '<div class="kv"><span>Treenejä sen jälkeen</span><span class="num">'+since+'</span></div>'+
       '<div class="kv"><span>Treenejä yhteensä</span><span class="num">'+S.sessions.length+'</span></div>'+
-      '<button class="btn wide primary" data-backup="1" style="margin-top:13px">Varmuuskopioi</button>'+
+      brandBtn("onedrive", 'data-backup="1" style="margin-top:13px"', "Varmuuskopioi", "wide primary")+
       '<p style="font-size:13px;color:var(--dim);margin:11px 0 0">Puhelin avaa jakovalikon: valitse <b>OneDrive</b> ja kansio '+
         esc(OD_PARENT)+' → '+esc(OD_FOLDER)+'. OneDrive muistaa kansion, joten seuraavilla kerroilla se on valmiina. '+
         'Kansio synkkaa myös koneellesi.</p>'+
@@ -1996,7 +2013,8 @@ function openSheet(){
     body.appendChild(c);
     body.appendChild(shareCard(sess));
     if(s.type==="summary"){
-      body.appendChild(el('<button class="btn wide" data-backup="1">Varmuuskopioi OneDriveen</button>'));
+      body.appendChild(el(brandBtn("onedrive", 'data-backup="1"', "Varmuuskopioi", "wide")));
+      if(S.meta.drive && driveConfigured()) body.appendChild(el(brandBtn("gdrive", 'data-dsync="1"', "Varmuuskopioi", "wide")));
       body.appendChild(el('<button class="btn wide primary" data-close="1">Valmis</button>'));
     }
     else body.appendChild(el('<button class="btn wide ghost" data-delsess="'+sess.id+'">Poista treeni</button>'));

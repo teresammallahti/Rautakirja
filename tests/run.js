@@ -598,6 +598,18 @@ const group = n => console.log('\n--- ' + n + ' ---');
     const r = await p.evaluate(() => { S.programs.forEach(p => { p.rot = false; }); save(); render(); return [/Vuorossa/.test(document.getElementById('view').textContent), document.querySelectorAll('[data-start]').length]; });
     if(r[0] || r[1] !== 3) throw new Error(JSON.stringify(r)); });
 
+  group('Varmuuskopiopainikkeet');
+  await T('painikkeessa lukee vain Varmuuskopioi, palvelu pienella; logon puuttuessa pilvikuvake', async () => {
+    await p.locator('[data-tab="data"]').click(); await p.waitForTimeout(600);
+    const r = await p.evaluate(() => { const b = document.querySelector('.bbtn[data-backup]');
+      return [b.querySelector('span:last-child').firstChild.textContent, b.querySelector('small').textContent, b.querySelector('.blogo').classList.contains('nologo'), !!b.querySelector('.blogo svg')]; });
+    if(r[0] !== 'Varmuuskopioi' || r[1] !== 'OneDrive' || !r[2] || !r[3]) throw new Error(JSON.stringify(r)); });
+  await T('logotiedoston loytyessa kuva nakyy', async () => {
+    const r = await p.evaluate(() => new Promise(res => { const b = document.querySelector('.bbtn[data-backup] .blogo'); b.classList.remove('nologo');
+      const img = b.querySelector('img'); img.onload = () => res([b.classList.contains('nologo'), getComputedStyle(img).display]); img.onerror = () => res(['virhe']);
+      img.src = './icon-192.png?' + Date.now(); }));   /* CSP sallii vain oman originin kuvat, ei data-URLeja */
+    if(r[0] !== false || r[1] !== 'block') throw new Error(JSON.stringify(r)); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 
