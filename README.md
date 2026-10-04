@@ -69,6 +69,12 @@ romahdus, tauko, eri asetukset) automaattimoottorin ja indeksien läpi ja tarkis
 invariantit (ei NaN, enintään askel per treeni, kevennys ei laske indeksiä, turvaventtiili
 toimii). Aja kun moottorin tai indeksien logiikkaa muutetaan.
 
+## Rotaatio
+
+Ohjelmalla on kenttä `rot`. Rotaatiossa olevat vuorottelevat ja kotinäkymä merkitsee seuraavan
+"Vuorossa"; muut listataan erikseen ja valitaan käsin. Pikaohjelmat ovat oletuksena rotaation
+ulkopuolella. Valinta on ohjelman muokkauksessa.
+
 ## Pikaohjelma
 
 Ohjelmat-välilehden **Pikaohjelma** arpoo ohjelman valituista lihasryhmistä (`quickGenerate`).

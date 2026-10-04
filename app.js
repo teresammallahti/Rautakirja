@@ -173,7 +173,7 @@ function seedPrograms(){
 
 function seed(){
   return {
-    v:8,
+    v:9,
     programs: seedPrograms(),
     sessions:[],
     active:null,
@@ -258,6 +258,13 @@ if(S.v < 8){
     }
   }));
   S.v = 8; save();
+}
+
+/* v8 → v9: rotaatio. Ohjelma on oletuksena mukana vuorottelussa; pika-
+   ohjelmat eivät, jottei arvottu ohjelma ohita käyttäjän omaa kiertoa. */
+if(S.v < 9){
+  S.programs.forEach(p => { if(p.rot === undefined) p.rot = !/^Pika:/.test(String(p.name)); });
+  S.v = 9; save();
 }
 }
 migrate();
@@ -1310,14 +1317,20 @@ function viewHome(v){
       '<button class="btn wide" data-backup="1">Varmuuskopioi nyt</button></div>'));
   }
 
-  // seuraava vuorossa: se ohjelma jota on treenattu vähiten viimeksi
+  /* Seuraava vuorossa: rotaatiossa olevista se, jota on treenattu vähiten
+     viimeksi. Rotaation ulkopuoliset (rot:false) listataan erikseen eikä
+     niitä koskaan tarjota vuorossa olevaksi. */
+  const inRot = p => p.rot !== false;
   const lastIdx = S.programs.map(p => {
+    if(!inRot(p)) return Infinity;
     for(let i=S.sessions.length-1;i>=0;i--) if(S.sessions[i].programId===p.id) return i;
     return -1;
   });
-  const next = lastIdx.indexOf(Math.min(...lastIdx));
+  const next = S.programs.some(inRot) ? lastIdx.indexOf(Math.min(...lastIdx)) : -1;
+  const extra = S.programs.filter(p => !inRot(p));
+  if(extra.length && S.programs.some(inRot)) wrap.appendChild(el('<div class="eyebrow" style="padding:4px 4px 0">Rotaatiossa</div>'));
 
-  S.programs.forEach((p,i) => {
+  const drawProg = (p,i) => {
     const L = (() => { for(let k=S.sessions.length-1;k>=0;k--) if(S.sessions[k].programId===p.id) return S.sessions[k]; return null; })();
     const c = el('<div class="card pad"></div>');
     c.innerHTML =
@@ -1331,7 +1344,12 @@ function viewHome(v){
         (L?' · viimeksi '+dateFi(L.date).toLowerCase():' · ei vielä treenattu')+'</div>'+
       '<button class="btn wide '+(i===next?"primary":"")+'" data-start="'+p.id+'">Aloita treeni</button>';
     wrap.appendChild(c);
-  });
+  };
+  S.programs.forEach((p,i) => { if(inRot(p)) drawProg(p,i); });
+  if(extra.length){
+    wrap.appendChild(el('<div class="eyebrow" style="padding:6px 4px 0">Rotaation ulkopuolella</div>'));
+    S.programs.forEach((p,i) => { if(!inRot(p)) drawProg(p,i); });
+  }
 
   const recent = S.sessions.slice(-3).reverse();
   if(recent.length){
@@ -1731,7 +1749,7 @@ function quickGenerate(groups, n, withWarm){
   const mins = Math.round((totalSets * 2.5 + ex.filter(x => !isWarm(x)).length * 2 + (withWarm ? 5 : 0)) / 5) * 5;
   return {
     program: {id: uid("p"), name: "Pika: " + groups.map(g => g.split(" ")[0]).join(", "),
-              est: "noin " + mins + " min", ex: ex},
+              est: "noin " + mins + " min", ex: ex, rot: false},
     picks: picks, totalSets: totalSets
   };
 }
@@ -1742,7 +1760,7 @@ function viewPrograms(v){
   c.innerHTML = S.programs.map(p =>
     '<button class="rowlink" data-editp="'+p.id+'">'+
       '<div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(p.name)+'</div>'+
-      '<div style="font-size:13px;color:var(--dim)">'+p.ex.length+' liikettä · '+esc(p.est||"")+'</div></div>'+
+      '<div style="font-size:13px;color:var(--dim)">'+p.ex.length+' liikettä · '+esc(p.est||"")+(p.rot===false?' · ei rotaatiossa':'')+'</div></div>'+
       '<span class="chev">'+I.chev+'</span></button>').join("");
   wrap.appendChild(c);
   wrap.appendChild(el('<div class="grid2">'+
@@ -2022,6 +2040,9 @@ function openSheet(){
       '<div class="card pad stack">'+
         '<label class="f"><span class="eyebrow">Ohjelman nimi</span><input data-p="name" value="'+esc(p.name)+'"></label>'+
         '<label class="f"><span class="eyebrow">Arvioitu kesto</span><input data-p="est" value="'+esc(p.est||"")+'" placeholder="esim. 45–55 min"></label>'+
+        '<label class="chkrow"><input type="checkbox" data-prot="1"'+(p.rot!==false?' checked':'')+'>'+
+          '<span>Mukana rotaatiossa<br><small style="color:var(--dim)">Rotaatiossa olevat vuorottelevat ja appi näyttää seuraavan. '+
+          'Muut ovat valittavissa käsin.</small></span></label>'+
       '</div>'));
     p.ex.forEach((x,i) => {
       const head =
@@ -2207,7 +2228,7 @@ document.addEventListener("click", async e => {
     render(); openSheet(); toast("Pikaohjelma tallennettu."); return;
   }
   if(d.newp){
-    const p = {id:uid("p"), name:"Uusi ohjelma", est:"", ex:[]};
+    const p = {id:uid("p"), name:"Uusi ohjelma", est:"", ex:[], rot:true};
     S.programs.push(p); save(); route.sheet={type:"program", id:p.id}; render(); openSheet(); return;
   }
   if(d.delsess){
@@ -2448,6 +2469,7 @@ function curProg(){ return S.programs.find(x=>x.id===route.sheet.id); }
 function readProgForm(p){
   const root = document.getElementById("sheetbg"); if(!root) return;
   root.querySelectorAll("[data-p]").forEach(i => { p[i.dataset.p] = i.value; });
+  const rot = root.querySelector("[data-prot]"); if(rot) p.rot = rot.checked;
   root.querySelectorAll("[data-exi]").forEach(box => {
     const x = p.ex[+box.dataset.exi]; if(!x) return;
     box.querySelectorAll("[data-x]").forEach(i => {

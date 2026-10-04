@@ -267,7 +267,7 @@ const group = n => console.log('\n--- ' + n + ' ---');
     await p.evaluate(() => { S.programs[1].ex.push({id:'xh', name:'Tangosta riippuminen', equip:'kehonpaino', step:1, sets:3, rmin:8, rmax:8, w:0}); S.v = 7; save(); });
     await p.reload({waitUntil:'load'}); await p.waitForTimeout(400);
     const r = await p.evaluate(() => { const x = S.programs[1].ex.find(e => e.id === 'xh'); return [S.v, x.unit, x.step, x.rmin, x.rmax]; });
-    if(r.join() !== '8,s,2.5,30,45') throw new Error(r.join()); });
+    if(r.join() !== '9,s,2.5,30,45') throw new Error(r.join()); });
   await p.evaluate(() => { const it = LIB[0].items.find(i => i.n === 'Kuntopyörä'); const w = defFromLib(it); w.id = 'xw';
     S.programs[1].ex.unshift(w); save(); });
   await p.reload({waitUntil:'load'}); await p.waitForTimeout(400);
@@ -556,7 +556,7 @@ const group = n => console.log('\n--- ' + n + ' ---');
       return [S.v, !!S.settings, S.settings.mode, x[0].unit, x[0].step, x[0].rmin, x[1].w, x[1].step, x[1].sets, S.sessions.length, S.sessions[0].ex[0].sets[0].w];
     });
     /* v3-migraatio pakottaa 3×8, v5 napsauttaa käsipainon 17→15, v8 riippuminen sekunneiksi; historiaan ei kosketa */
-    if(JSON.stringify(r) !== JSON.stringify([8, true, 'staattinen', 's', 2.5, 30, 15, 1, 3, 1, 17])) throw new Error(JSON.stringify(r)); });
+    if(JSON.stringify(r) !== JSON.stringify([9, true, 'staattinen', 's', 2.5, 30, 15, 1, 3, 1, 17])) throw new Error(JSON.stringify(r)); });
   await T('tuonnin jalkeen appi toimii: treeni kaynnistyy ja riippuminen on sekunteina', async () => {
     await p.evaluate(() => { route.tab = 'treeni'; render(); });
     await p.locator('[data-start="p1"]').click(); await p.waitForTimeout(300);
@@ -566,6 +566,37 @@ const group = n => console.log('\n--- ' + n + ' ---');
   await T('roskadata tuonnissa hylataan siististi', async () => {
     const r = await p.evaluate(() => { const n = S.sessions.length; applyImport('{"foo":1}'); applyImport('ei jsonia'); return S.sessions.length === n; });
     if(!r) throw new Error('data muuttui'); });
+
+  group('Rotaatio');
+  await p.evaluate(() => { S.sessions = []; S.active = null; S.settings = defaultSettings();
+    S.programs = [{id:'r1', name:'A', est:'', rot:true, ex:[{id:'x1', name:'Penkkipunnerrus tangolla', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:60}]},
+                  {id:'r2', name:'B', est:'', rot:true, ex:[{id:'x2', name:'Takakyykky', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:60}]}];
+    S.sessions = [{id:'s1', programId:'r1', name:'A', date:new Date().toISOString(), startedAt:0, finishedAt:1, ex:[{name:'Penkkipunnerrus tangolla', equip:'tanko', rmax:8, target:3, sets:[{w:60, r:8, ok:true}]}]}];
+    save(); route.tab = 'treeni'; render(); });
+  await T('vuorossa on rotaation vahiten treenattu (B)', async () => {
+    const t = await p.evaluate(() => { const c = [...document.querySelectorAll('#view .card')].find(c => /Vuorossa/.test(c.textContent)); return c && c.querySelector('h2').textContent; });
+    if(t !== 'B') throw new Error(String(t)); });
+  await T('pikaohjelma tallentuu rotaation ulkopuolelle eika ole vuorossa', async () => {
+    const r = await p.evaluate(() => { const o = quickGenerate(['Hauis'], 2, false); S.programs.push(o.program); save(); render();
+      const cards = [...document.querySelectorAll('#view .card')]; const v = cards.find(c => /Vuorossa/.test(c.textContent));
+      return [o.program.rot, v && v.querySelector('h2').textContent, /Rotaation ulkopuolella/.test(document.getElementById('view').textContent),
+              document.querySelectorAll('[data-start]').length]; });
+    if(r[0] !== false || r[1] !== 'B' || !r[2] || r[3] !== 3) throw new Error(JSON.stringify(r)); });
+  await T('migraatio v9: vanhat ohjelmat rotaatioon, Pika-nimiset ulos', async () => {
+    const r = await p.evaluate(() => { S.programs.forEach(p => { delete p.rot; }); S.programs[2].name = 'Pika: Hauis'; S.v = 8; save(); migrate(); return S.programs.map(p => p.rot).join(); });
+    if(r !== 'true,true,false') throw new Error(r); });
+  await T('editorin raksi muuttaa rotaation', async () => {
+    await p.locator('[data-tab="ohjelmat"]').click(); await p.waitForTimeout(250);
+    const t0 = await p.textContent('#view'); if(!/ei rotaatiossa/.test(t0)) throw new Error('merkintä puuttuu');
+    await p.locator('[data-editp="r1"]').click(); await p.waitForTimeout(300);
+    await p.locator('[data-prot]').uncheck(); await p.locator('[data-savep]').click(); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => S.programs[0].rot); if(r !== false) throw new Error(String(r));
+    await p.evaluate(() => { route.tab = 'treeni'; render(); });
+    const t = await p.evaluate(() => { const c = [...document.querySelectorAll('#view .card')].find(c => /Vuorossa/.test(c.textContent)); return c && c.querySelector('h2').textContent; });
+    if(t !== 'B') throw new Error(String(t)); });
+  await T('kaikki rotaation ulkopuolella: ei vuorossa-merkkia, ei kaadu', async () => {
+    const r = await p.evaluate(() => { S.programs.forEach(p => { p.rot = false; }); save(); render(); return [/Vuorossa/.test(document.getElementById('view').textContent), document.querySelectorAll('[data-start]').length]; });
+    if(r[0] || r[1] !== 3) throw new Error(JSON.stringify(r)); });
 
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
