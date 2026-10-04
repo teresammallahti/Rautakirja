@@ -543,6 +543,30 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(checked !== 'Etureisi|Pohkeet|Selkä' && checked !== 'Selkä|Etureisi|Pohkeet') throw new Error(checked);
     await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200); });
 
+  group('Vanhan varmuuskopion tuonti');
+  await T('v1-varmuuskopio (ei v-kenttaa) migratoituu tuonnissa ilman uudelleenlatausta', async () => {
+    const r = await p.evaluate(() => {
+      const old = {programs:[{id:'p1', name:'Vanha', est:'', ex:[
+        {id:'a', name:'Tangosta riippuminen', equip:'kehonpaino', step:1, sets:3, rmin:10, rmax:12, w:0},
+        {id:'b', name:'Hauiskääntö käsipainoilla', equip:'käsipaino', step:2, sets:4, rmin:10, rmax:12, w:17}]}],
+        sessions:[{id:'s1', programId:'p1', name:'Vanha', date:new Date(2026,0,3).toISOString(), startedAt:0, finishedAt:1,
+          ex:[{id:'b', name:'Hauiskääntö käsipainoilla', equip:'käsipaino', sets:[{w:17, r:12, ok:true}]}]}]};
+      applyImport(JSON.stringify(old));
+      const x = S.programs[0].ex;
+      return [S.v, !!S.settings, S.settings.mode, x[0].unit, x[0].step, x[0].rmin, x[1].w, x[1].step, x[1].sets, S.sessions.length, S.sessions[0].ex[0].sets[0].w];
+    });
+    /* v3-migraatio pakottaa 3×8, v5 napsauttaa käsipainon 17→15, v8 riippuminen sekunneiksi; historiaan ei kosketa */
+    if(JSON.stringify(r) !== JSON.stringify([8, true, 'staattinen', 's', 2.5, 30, 15, 1, 3, 1, 17])) throw new Error(JSON.stringify(r)); });
+  await T('tuonnin jalkeen appi toimii: treeni kaynnistyy ja riippuminen on sekunteina', async () => {
+    await p.evaluate(() => { route.tab = 'treeni'; render(); });
+    await p.locator('[data-start="p1"]').click(); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => [S.active.ex[0].unit, S.active.ex[0].sets[0].r, S.active.ex[1].sets[0].w].join());
+    if(r !== 's,45,17.5') throw new Error(r);   /* historia 17 kg täynnä → ruudukon seuraava 17,5 */
+    await p.locator('[data-cancel]').click(); await p.waitForTimeout(150); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(200); });
+  await T('roskadata tuonnissa hylataan siististi', async () => {
+    const r = await p.evaluate(() => { const n = S.sessions.length; applyImport('{"foo":1}'); applyImport('ei jsonia'); return S.sessions.length === n; });
+    if(!r) throw new Error('data muuttui'); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

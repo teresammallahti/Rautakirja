@@ -11,7 +11,8 @@ Kaikki data tallentuu selaimen omaan muistiin (`localStorage`, avain `rautakirja
 laitteella jolla appia käytetään. Palvelinta ei ole, joten treenit eivät siirry GitHubiin
 eivätkä minnekään muualle. Jokainen käyttäjä saa oman erillisen kopionsa samasta osoitteesta.
 
-Data viedään varmuuskopioksi JSON-tiedostona Data-välilehdeltä. Puhelimessa se avaa
+Data viedään varmuuskopioksi JSON-tiedostona Asetukset-välilehdeltä. Vanhan version varmuuskopio
+migratoidaan tuonnissa nykyiseen skeemaan (`migrate()`). Puhelimessa se avaa
 jakovalikon, työpöydällä tiedosto latautuu normaalisti.
 
 ## Tiedostot
@@ -23,6 +24,7 @@ jakovalikon, työpöydällä tiedosto latautuu normaalisti.
 | `sw.js` | Palvelutyöntekijä — appi latautuu myös ilman verkkoa |
 | `manifest.webmanifest` | Tekee sivusta asennettavan sovelluksen |
 | `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` | Aloitusnäytön kuvakkeet |
+| `tests/run.js`, `tests/sim.js` | Selaintestit ja stressitesti (eivät ole osa sivustoa) |
 
 Kaikki polut ovat suhteellisia (`./`), koska GitHub Pages tarjoilee sivuston alikansiosta.
 

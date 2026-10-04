@@ -186,7 +186,13 @@ let S;
 try{ const raw = localStorage.getItem(KEY); S = raw ? JSON.parse(raw) : seed(); }
 catch(e){ S = seed(); }
 if(!S || !S.programs) S = seed();
+
+/* Skeemamigraatiot. Ajetaan käynnistyksessä JA aina kun dataa tuodaan
+   tiedostosta tai pilvestä — tuotu varmuuskopio voi olla vanhaa versiota. */
+function migrate(){
 if(!S.settings) S.settings = defaultSettings();
+if(!S.meta) S.meta = {lastBackup:null, backupCount:0};
+if(!Array.isArray(S.sessions)) S.sessions = [];
 
 /* v1 → v2: liikepankki käyttöön + korjatut oletusohjelmat.
    Ohjelmat päivitetään vain jos treenejä ei ole vielä kirjattu. */
@@ -253,6 +259,8 @@ if(S.v < 8){
   }));
   S.v = 8; save();
 }
+}
+migrate();
 
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){ toast("Tallennus ei onnistunut — muisti täynnä?"); } }
 
@@ -614,8 +622,8 @@ async function driveUpload(token, file){
 
 function applyRemote(data){
   if(!data || !Array.isArray(data.programs) || !Array.isArray(data.sessions)) return false;
-  S = Object.assign(seed(), data, {active:null});
-  S.meta = S.meta || {};
+  S = Object.assign(seed(), data, {active:null, v: data.v || 1});
+  migrate();
   S.meta.drive = true;
   S.meta.driveAt = new Date().toISOString();
   S.meta.driveCount = S.sessions.length;
@@ -1937,8 +1945,8 @@ function applyImport(text){
   let d;
   try{ d = JSON.parse(text); }catch(e){ toast("Tiedosto ei ole kelvollinen varmuuskopio."); return; }
   if(!d || !Array.isArray(d.programs) || !Array.isArray(d.sessions)){ toast("Tiedostosta ei löydy treenidataa."); return; }
-  S = Object.assign(seed(), d, {active:null});
-  save(); render(); toast("Data tuotu: " + S.sessions.length + " treeniä.");
+  S = Object.assign(seed(), d, {active:null, v: d.v || 1});
+  migrate(); save(); render(); toast("Data tuotu: " + S.sessions.length + " treeniä.");
 }
 
 /* ============ SHEET (treenin yhteenveto / detaljit / editori) ============ */
@@ -2174,7 +2182,6 @@ document.addEventListener("click", async e => {
   if(d.ans !== undefined) return;
 
   if(d.tab){ route.tab=d.tab; route.openEx=null; closeSheet(); route.sheet=null; render(); return; }
-  if(d.go){ route.tab=d.go; render(); return; }
   if(d.close){ closeSheet(); route.sheet=null; render(); return; }
   if(d.start){ startWorkout(d.start); return; }
   if(d.hsub!==undefined && d.hsub){ route.hsub=d.hsub; render(); return; }
