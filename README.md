@@ -74,6 +74,13 @@ Säännöt: yhdistelmäliike ensin joka ryhmästä, noin 20–24 sarjaa per tree
 lihasryhmä, toistohaarukka liiketyypin mukaan, tutut liikkeet etusijalla, viime treenin liikkeitä
 vältetään, alle 48 h sitten treenattu ryhmä saa sarjan vähemmän. Perustelut ovat koodin kommentissa.
 
+## Viikkovolyymi
+
+Historia-välilehti näyttää viimeisen 7 päivän sarjat lihasryhmittäin suhteessa tuottavaan
+10–20 sarjan alueeseen (`weekVolume`). Yhdistelmäliikkeet lasketaan toissijaiselle lihakselle
+puolikkaana (`SECONDARY`). Kotinäkymä vihjaa alle 10 sarjaan jääneistä ryhmistä, ja
+pikaohjelma esivalitsee ne.
+
 ## Liikepankki
 
 Sovelluksen liikkeet ovat `app.js`:ssä `LIB`-vakiona, ryhmiteltynä lihasryhmittäin.

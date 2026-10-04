@@ -203,6 +203,18 @@ label.f > span{display:block;margin-bottom:4px}
 .infobox ul{margin:6px 0 0;padding-left:18px;font-size:13.5px;line-height:1.45;color:var(--text)}
 .infobox li{margin:3px 0}
 .infobox b{color:var(--accent)}
+.vlist{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+.vrow{display:grid;grid-template-columns:118px 1fr 52px;gap:8px;align-items:center;font-size:13px}
+.vname{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vbar{position:relative;height:12px;background:var(--sunk);border-radius:6px;overflow:hidden;display:block}
+.vbar i{position:absolute;top:0;bottom:0;display:block}
+.vband{left:40%;width:40%;background:var(--line)}
+.vd{left:0;background:var(--accent);border-radius:6px 0 0 6px}
+.vd.in{background:var(--good)}
+.vd.over{background:var(--gold)}
+.vi{background:var(--accent-soft);border-left:1px solid var(--accent)}
+.vnum{text-align:right;font-size:13px}
+.vnum small{color:var(--dim);font-size:11px}
 .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px 10px}
 .chkrow{display:flex;align-items:center;gap:10px;font-size:14.5px;cursor:pointer}
 .chkrow input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin:0}

@@ -1280,6 +1280,19 @@ function viewHome(v){
     }
   }
 
+  if(S.sessions.length >= 4 && !S.active){
+    const low = lowGroups(2);
+    if(low.length){
+      wrap.appendChild(el(
+        '<div class="card pad" style="padding-top:11px;padding-bottom:11px">'+
+          '<div class="eyebrow">Viikon volyymi</div>'+
+          '<div style="font-size:13.5px;margin-top:4px">Alle 10 sarjaa viimeisen 7 päivän aikana: '+
+            low.map(x => '<b>'+esc(x.g)+'</b> '+fmt(x.n)).join(', ')+'. '+
+            '<button class="pill" data-quicklow="1">Pikaohjelma näille</button></div>'+
+        '</div>'));
+    }
+  }
+
   const sinceBackup = S.sessions.length - (S.meta.backupCount||0);
   if(sinceBackup >= 3){
     wrap.appendChild(el(
@@ -1476,7 +1489,7 @@ function viewHistory(v){
       '<button class="btn '+(route.hsub==="liikkeet"?"primary":"")+'" data-hsub="liikkeet">Liikkeet</button>'+
     '</div>'));
 
-  if(route.hsub!=="liikkeet") wrap.appendChild(viewChart());
+  if(route.hsub!=="liikkeet"){ wrap.appendChild(viewChart()); wrap.appendChild(volumeCard()); }
 
   if(route.hsub==="liikkeet"){
     const names = [...new Set(S.sessions.flatMap(s => s.ex.map(e=>e.name)))].sort((a,b)=>a.localeCompare(b,"fi"));
@@ -1567,6 +1580,74 @@ function groupStats(g){
   });
   return {week: week, last: last, lastSets: lastSets,
           recent: !!last && (Date.now() - new Date(last).getTime()) < 48 * 36e5 && lastSets >= 6};
+}
+
+/* ---- viikkovolyymi lihasryhmittäin ----
+   Suorat sarjat = liikkeen oma ryhmä. Epäsuorat = yhdistelmäliikkeen
+   toissijaiset lihakset puolikkaana sarjana (yleinen käytäntö mm. RP:n
+   volyymiohjeissa): penkki → ojentaja ja hartiat, vedot ja soudut → hauis,
+   pystypunnerrukset → ojentaja, kyykyt ja prässit → takareisi ja pakarat,
+   maastavedot → selkä, dipit → rinta. Liukuva 7 päivää, ei kalenteriviikko,
+   jotta maanantaina ei näy tyhjää taulua. */
+const SECONDARY = [
+  [/penkkipunnerrus|rintaprässi|^punnerrus|dippi rinnalle/i, ["Ojentaja", "Hartiat"]],
+  [/ylätalja|leuanveto|alasveto|soutu|vetoliike/i,            ["Hauis"]],
+  [/pystypunnerrus|arnold|olkapääpunnerrus|pystysoutu/i,      ["Ojentaja"]],
+  [/kyykky|jalkaprässi|askelkyykky|astuminen/i,               ["Takareisi ja pakarat"]],
+  [/^maastaveto|sumomaastaveto|trap bar/i,                    ["Selkä"]],
+  [/dippi ojentajalle|dippilaite/i,                           ["Rinta"]]
+];
+function weekVolume(days){
+  const since = Date.now() - (days || 7) * 864e5;
+  const out = {}; QG.forEach(g => { out[g] = {direct: 0, indirect: 0}; });
+  S.sessions.forEach(sess => {
+    if(new Date(sess.date).getTime() < since) return;
+    sess.ex.forEach(x => {
+      if(isWarm(x)) return;
+      const n = x.sets.filter(t => t.ok).length; if(!n) return;
+      const g = groupOf(x.name);
+      if(out[g]) out[g].direct += n;
+      SECONDARY.forEach(([re, gs]) => { if(re.test(x.name)) gs.forEach(sg => { if(sg !== g && out[sg]) out[sg].indirect += n * 0.5; }); });
+    });
+  });
+  return out;
+}
+/* Ryhmät joita käyttäjä on joskus treenannut — niistä puhutaan, ei muista. */
+function trainedGroups(){
+  const set = new Set();
+  S.sessions.forEach(s => s.ex.forEach(x => { if(!isWarm(x) && x.sets.some(t => t.ok)) set.add(groupOf(x.name)); }));
+  return QG.filter(g => set.has(g));
+}
+/* Vähiten treenatut ryhmät viimeiseltä 7 päivältä (suorat + epäsuorat), alle 10 sarjaa. */
+function lowGroups(max){
+  const v = weekVolume(7);
+  return trainedGroups().map(g => ({g: g, n: v[g].direct + v[g].indirect}))
+    .filter(x => x.n < 10).sort((a, b) => a.n - b.n).slice(0, max || 3);
+}
+function volumeCard(){
+  const v = weekVolume(7);
+  const groups = trainedGroups();
+  const c = el('<div class="card pad"></div>');
+  if(!groups.length){
+    c.innerHTML = '<div class="eyebrow">Viikon sarjat lihasryhmittäin</div><div class="empty" style="padding:18px 6px">Näkyy kun treenejä on kirjattu.</div>';
+    return c;
+  }
+  const rows = QG.filter(g => groups.includes(g) || v[g].direct + v[g].indirect > 0).map(g => {
+    const d = v[g].direct, i = v[g].indirect, tot = d + i;
+    const pd = Math.min(100, d / 25 * 100), pi = Math.min(100 - pd, i / 25 * 100);
+    const cls = tot >= 10 && tot <= 20 ? "in" : tot > 20 ? "over" : "";
+    return '<div class="vrow">'+
+      '<span class="vname">'+esc(g)+'</span>'+
+      '<span class="vbar"><i class="vband"></i><i class="vd '+cls+'" style="width:'+pd+'%"></i><i class="vi" style="left:'+pd+'%;width:'+pi+'%"></i></span>'+
+      '<span class="num vnum">'+fmt(d)+(i ? ' <small>+'+fmt(i)+'</small>' : '')+'</span></div>';
+  }).join("");
+  c.innerHTML =
+    '<div class="eyebrow">Viikon sarjat lihasryhmittäin · 7 pv</div>'+
+    '<div class="vlist">'+rows+'</div>'+
+    '<p style="font-size:12.5px;color:var(--dim);margin:10px 0 0">Harmaa kaista = tuottava alue 10–20 sarjaa viikossa. '+
+      'Pieni luku on epäsuoria sarjoja: yhdistelmäliike lasketaan toissijaiselle lihakselle puolikkaana '+
+      '(penkki → ojentaja ja hartiat, vedot → hauis, kyykyt → takareisi ja pakarat).</p>';
+  return c;
 }
 
 function quickGenerate(groups, n, withWarm){
@@ -2003,16 +2084,16 @@ function openSheet(){
 
 
   if(s.type==="quick"){
-    const q = route.quick = route.quick || {groups:["Rinta","Selkä"], n:6, warm:true, out:null};
+    const q = route.quick = route.quick || {groups:(lowGroups(3).map(x => x.g).length ? lowGroups(3).map(x => x.g) : ["Rinta","Selkä"]), n:6, warm:true, out:null};
     bar.innerHTML = '<h2>Pikaohjelma</h2><button class="btn sm ghost" data-close="1">'+I.x+'</button>';
     body.appendChild(el(
       '<div class="card pad">'+
         '<div class="eyebrow">Lihasryhmät</div>'+
-        '<p style="font-size:13px;color:var(--dim);margin:4px 0 10px">Suluissa tällä viikolla tehdyt sarjat. '+
-          'Tuottava alue on noin 10–20 sarjaa viikossa per lihasryhmä.</p>'+
-        '<div class="qgrid">'+QG.map(g => { const st = groupStats(g);
+        '<p style="font-size:13px;color:var(--dim);margin:4px 0 10px">Suluissa viimeisen 7 päivän sarjat (epäsuorat puolikkaina). '+
+          'Tuottava alue on noin 10–20 sarjaa viikossa per lihasryhmä. Vähiten treenatut on esivalittu.</p>'+
+        '<div class="qgrid">'+(function(){ const v = weekVolume(7); return QG.map(g => { const n = v[g].direct + v[g].indirect;
           return '<label class="chkrow"><input type="checkbox" data-qg="'+esc(g)+'"'+(q.groups.includes(g)?' checked':'')+'>'+
-            '<span>'+esc(g)+' <span class="num" style="color:var(--dim);font-size:12.5px">('+st.week+')</span></span></label>'; }).join("")+
+            '<span>'+esc(g)+' <span class="num" style="color:var(--dim);font-size:12.5px">('+fmt(n)+')</span></span></label>'; }).join(""); })()+
         '</div>'+
         '<div class="grid2" style="margin-top:12px">'+
           '<label class="f"><span class="eyebrow">Liikkeitä</span><input inputmode="numeric" data-qn="1" value="'+q.n+'"></label>'+
@@ -2102,6 +2183,7 @@ document.addEventListener("click", async e => {
   if(d.exname){ route.sheet={type:"exercise", name:d.exname}; openSheet(); return; }
   if(d.editp){ route.sheet={type:"program", id:d.editp}; openSheet(); return; }
   if(d.quick){ route.quick = null; route.sheet={type:"quick"}; openSheet(); return; }
+  if(d.quicklow){ route.quick = {groups:lowGroups(3).map(x => x.g), n:6, warm:true, out:null}; route.tab = "ohjelmat"; route.sheet={type:"quick"}; render(); openSheet(); return; }
   if(d.qgen){
     const q = route.quick; const root = document.getElementById("sheetbg");
     q.groups = [...root.querySelectorAll("[data-qg]:checked")].map(i => i.dataset.qg);

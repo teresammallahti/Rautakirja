@@ -513,6 +513,36 @@ const group = n => console.log('\n--- ' + n + ' ---');
     await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
     await p.evaluate(() => { S.programs.pop(); save(); }); });
 
+  group('Viikkovolyymi lihasryhmittain');
+  await p.evaluate(() => { S.settings = defaultSettings(); S.active = null;
+    const mk = (d, ex) => ({id:'v'+d, programId:'t', name:'T', date:new Date(Date.now() - d*864e5).toISOString(), startedAt:0, finishedAt:1, ex});
+    const sets = (w, n) => Array.from({length:n}, () => ({w, r:8, ok:true}));
+    S.sessions = [
+      mk(1, [{name:'Penkkipunnerrus tangolla', equip:'tanko', rmax:8, target:4, sets:sets(90,4)}, {name:'Hauiskääntö vinotangolla', equip:'tanko', rmax:8, target:3, sets:sets(30,3)}]),
+      mk(3, [{name:'Ylätalja myötäotteella', equip:'talja', rmax:8, target:3, sets:sets(100,3)}, {name:'Takakyykky', equip:'tanko', rmax:8, target:3, sets:sets(100,3)}]),
+      mk(5, [{name:'Kuntopyörä', equip:'lämmittely', warm:true, sets:[{w:0, r:8, ok:true}]}, {name:'Penkkipunnerrus tangolla', equip:'tanko', rmax:8, target:4, sets:sets(90,4)}]),
+      mk(9, [{name:'Pohjenousu istuen', equip:'laite', rmax:15, target:4, sets:sets(60,4)}])
+    ]; save(); });
+  await p.reload({waitUntil:'load'}); await p.waitForTimeout(350);
+  await T('weekVolume: suorat ja epasuorat oikein, 7 pv raja, lammittely ei laske', async () => {
+    const v = await p.evaluate(() => { const v = weekVolume(7); return [v.Rinta.direct, v.Rinta.indirect, v.Ojentaja.indirect, v.Hartiat.indirect, v.Hauis.direct, v.Hauis.indirect, v['Takareisi ja pakarat'].indirect, v.Pohkeet.direct].join(); });
+    if(v !== '8,0,4,4,3,1.5,1.5,0') throw new Error(v); });
+  await T('lowGroups: vain treenatut ryhmat alle 10, pienin ensin', async () => {
+    const r = await p.evaluate(() => lowGroups(5).map(x => x.g + ':' + x.n).join('|'));
+    if(r !== 'Pohkeet:0|Selkä:3|Etureisi:3|Hauis:4.5|Rinta:8') throw new Error(r); });
+  await T('historiassa volyymikortti ja kaista', async () => {
+    await p.locator('[data-tab="historia"]').click(); await p.waitForTimeout(250);
+    await p.locator('[data-hsub="treenit"]').click(); await p.waitForTimeout(250);
+    const n = await p.locator('.vrow').count(); const t = await p.textContent('#view');
+    if(n < 5 || !/Viikon sarjat lihasryhmittäin/.test(t) || !/\+4/.test(t)) throw new Error(n + ' ' + t.slice(0, 100)); });
+  await T('kotinakyman vihje ja pikaohjelman esivalinta', async () => {
+    await p.locator('[data-tab="treeni"]').click(); await p.waitForTimeout(250);
+    const t = await p.textContent('#view'); if(!/Viikon volyymi/.test(t) || !/Pohkeet/.test(t)) throw new Error(t.slice(0, 200));
+    await p.locator('[data-quicklow]').click(); await p.waitForTimeout(350);
+    const checked = await p.evaluate(() => [...document.querySelectorAll('[data-qg]:checked')].map(i => i.dataset.qg).join('|'));
+    if(checked !== 'Etureisi|Pohkeet|Selkä' && checked !== 'Selkä|Etureisi|Pohkeet') throw new Error(checked);
+    await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 
