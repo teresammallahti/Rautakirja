@@ -410,6 +410,41 @@ const group = n => console.log('\n--- ' + n + ' ---');
     const t = await p.textContent('#sheetbg'); if(!/Turvallisuus/.test(t)) throw new Error(t.slice(0, 200));
     await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200); });
 
+  group('Liikkeiden siirto ohjelmassa');
+  await p.evaluate(() => { S.sessions = []; S.active = null; S.settings = defaultSettings(); save(); });
+  await p.reload({waitUntil:'load'}); await p.waitForTimeout(350);
+  await p.locator('[data-tab="ohjelmat"]').click(); await p.waitForTimeout(250);
+  const pid2 = await p.evaluate(() => S.programs[1].id);
+  const names0 = await p.evaluate(() => S.programs[1].ex.map(x => x.name));
+  await p.locator('[data-editp="'+pid2+'"]').click(); await p.waitForTimeout(300);
+  await T('ensimmaisen ylos- ja viimeisen alasnapit eivat ole enaa pois paalta', async () => {
+    const n = names0.length;
+    const a = await p.locator('[data-exi="0"] [data-mv][data-dir="-1"]').isDisabled();
+    const b = await p.locator('[data-exi="'+(n-1)+'"] [data-mv][data-dir="1"]').isDisabled();
+    if(a || b) throw new Error(a + ' ' + b); });
+  await T('viimeinen alas -> ensimmaiseksi, muut jarjestyksessa', async () => {
+    const n = names0.length;
+    await p.locator('[data-exi="'+(n-1)+'"] [data-mv][data-dir="1"]').click(); await p.waitForTimeout(300);
+    const now = await p.evaluate(() => S.programs[1].ex.map(x => x.name));
+    if(now[0] !== names0[n-1] || now.slice(1).join('|') !== names0.slice(0, n-1).join('|')) throw new Error(now.join('|')); });
+  await T('ensimmainen ylos -> viimeiseksi (palauttaa alkuperaisen)', async () => {
+    await p.locator('[data-exi="0"] [data-mv][data-dir="-1"]').click(); await p.waitForTimeout(300);
+    const now = await p.evaluate(() => S.programs[1].ex.map(x => x.name));
+    if(now.join('|') !== names0.join('|')) throw new Error(now.join('|')); });
+  await T('normaali siirto yksi pykala toimii edelleen', async () => {
+    await p.locator('[data-exi="1"] [data-mv][data-dir="-1"]').click(); await p.waitForTimeout(300);
+    const now = await p.evaluate(() => S.programs[1].ex.map(x => x.name));
+    if(now[0] !== names0[1] || now[1] !== names0[0]) throw new Error(now.join('|'));
+    await p.locator('[data-exi="0"] [data-mv][data-dir="1"]').click(); await p.waitForTimeout(300); });
+  await T('siirron jalkeen siirretty liike on nakyvissa (ei hyppaa ylos)', async () => {
+    const n = names0.length;
+    await p.locator('[data-exi="0"] [data-mv][data-dir="-1"]').click(); await p.waitForTimeout(350);
+    const r = await p.evaluate(n => { const el = document.querySelector('#sheetbg [data-exi="'+(n-1)+'"]'); const b = el.getBoundingClientRect();
+      return b.top >= 0 && b.bottom <= innerHeight; }, n);
+    if(!r) throw new Error('liike ei nakyvissa');
+    await p.locator('[data-exi="'+(n-1)+'"] [data-mv][data-dir="1"]').click(); await p.waitForTimeout(300); });
+  await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

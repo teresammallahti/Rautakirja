@@ -1804,8 +1804,8 @@ function openSheet(){
       const head =
           '<div style="display:flex;align-items:center;gap:8px">'+
             '<span class="idx">'+(i+1)+'</span>'+
-            '<button class="btn sm ghost" data-mv="'+i+'" data-dir="-1" '+(i===0?"disabled":"")+' aria-label="Siirrä ylös">↑</button>'+
-            '<button class="btn sm ghost" data-mv="'+i+'" data-dir="1" '+(i===p.ex.length-1?"disabled":"")+' aria-label="Siirrä alas">↓</button>'+
+            '<button class="btn sm ghost" data-mv="'+i+'" data-dir="-1" '+(p.ex.length<2?"disabled":"")+' aria-label="'+(i===0?"Siirrä viimeiseksi":"Siirrä ylös")+'">↑</button>'+
+            '<button class="btn sm ghost" data-mv="'+i+'" data-dir="1" '+(p.ex.length<2?"disabled":"")+' aria-label="'+(i===p.ex.length-1?"Siirrä ensimmäiseksi":"Siirrä alas")+'">↓</button>'+
             '<button class="btn sm ghost" data-delex="'+i+'" style="margin-left:auto">Poista</button>'+
           '</div>'+
           '<label class="f"><span class="eyebrow">'+(isWarm(x)?'Lämmittely':'Liike'+(MG[x.name]?" · "+esc(MG[x.name]):""))+'</span>'+
@@ -1966,7 +1966,22 @@ document.addEventListener("click", async e => {
   if(d.cancel){ if(await ask("Hylätäänkö treeni? Kirjatut sarjat katoavat.","Hylkää")){ S.active=null; save(); render(); releaseWake(); } return; }
 
   /* --- ohjelmaeditori --- */
-  if(d.mv!==undefined){ const p=curProg(); const i=+d.mv, j=i+ +d.dir; if(j<0||j>=p.ex.length) return; readProgForm(p); [p.ex[i],p.ex[j]]=[p.ex[j],p.ex[i]]; save(); openSheet(); return; }
+  if(d.mv!==undefined){
+    const p=curProg(), n=p.ex.length, i=+d.mv, dir=+d.dir;
+    if(n<2) return;
+    readProgForm(p);
+    /* Reunalla liike kiertää toiseen päähän: viimeinen alas → ensimmäiseksi,
+       ensimmäinen ylös → viimeiseksi. Muuten lisätty liike pitäisi nytkyttää
+       ylös pykälä kerrallaan. */
+    const j = (i + dir + n) % n;
+    if(Math.abs(j - i) === 1) [p.ex[i], p.ex[j]] = [p.ex[j], p.ex[i]];
+    else p.ex.splice(j, 0, p.ex.splice(i, 1)[0]);
+    save(); openSheet();
+    /* Näkymä piirtyy uudelleen ylhäältä — viedään siirretty liike takaisin näkyviin. */
+    const moved = document.querySelector('#sheetbg [data-exi="'+j+'"]');
+    if(moved) moved.scrollIntoView({block:"center"});
+    return;
+  }
   if(d.delex!==undefined){ const p=curProg(); readProgForm(p); p.ex.splice(+d.delex,1); save(); openSheet(); return; }
   if(d.addcustom){ const p=curProg(); readProgForm(p); p.ex.push({id:uid("x"), name:"", equip:"tanko", step:2.5, sets:3, rmin:8, rmax:8, w:20}); save(); openSheet(); return; }
   if(d.addex){ const p=curProg(); readProgForm(p); save(); route.sheet={type:"picker", back:{type:"program", id:p.id}, exi:null}; openSheet(); return; }
