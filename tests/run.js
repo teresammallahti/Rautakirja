@@ -445,6 +445,74 @@ const group = n => console.log('\n--- ' + n + ' ---');
     await p.locator('[data-exi="'+(n-1)+'"] [data-mv][data-dir="1"]').click(); await p.waitForTimeout(300); });
   await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
 
+  group('Pikaohjelma');
+  await p.evaluate(() => { S.settings = defaultSettings(); S.active = null;
+    const mk = (d, a) => ({id:'q'+d, programId:'t', name:'T', date:new Date(Date.now() - d*864e5).toISOString(), startedAt:0, finishedAt:1, ex:[
+      {name:'Penkkipunnerrus tangolla', equip:'tanko', rmax:8, target:3, sets:[1,2,3].map(() => ({w:a, r:8, ok:true}))},
+      {name:'Takakyykky', equip:'tanko', rmax:8, target:4, sets:[1,2,3,4,5,6].map(() => ({w:110, r:8, ok:true}))}]});
+    S.sessions = [mk(9, 87.5), mk(1, 90)]; save(); });
+  await p.reload({waitUntil:'load'}); await p.waitForTimeout(350);
+  await T('generaattori: oikea maara, vain valitut ryhmat, ei tuplia', async () => {
+    const r = await p.evaluate(() => { const bad = [];
+      for(let k = 0; k < 30; k++){
+        const o = quickGenerate(['Rinta','Selkä','Hauis','Ojentaja'], 8, false);
+        const names = o.program.ex.map(x => x.name);
+        if(names.length !== 8) bad.push('n=' + names.length);
+        if(new Set(names).size !== 8) bad.push('tupla: ' + names.join(','));
+        const gs = names.map(groupOf); if(gs.some(g => !['Rinta','Selkä','Hauis','Ojentaja'].includes(g))) bad.push('ryhma: ' + gs.join(','));
+        if(gs.filter(g => g === 'Rinta').length !== 2 || gs.filter(g => g === 'Selkä').length !== 2) bad.push('jako: ' + gs.join(','));
+      } return bad.slice(0, 3); });
+    if(r.length) throw new Error(r.join(' | ')); });
+  await T('ylijaama menee isoille ryhmille (Selka 3, Hauis 2 kun 5 liiketta)', async () => {
+    const r = await p.evaluate(() => { const o = quickGenerate(['Selkä','Hauis'], 5, false); const gs = o.program.ex.map(x => groupOf(x.name));
+      return [gs.filter(g => g === 'Selkä').length, gs.filter(g => g === 'Hauis').length].join(); });
+    if(r !== '3,2') throw new Error(r); });
+  await T('yhdistelmaliikkeet ensin, pohkeet ja keskivartalo viimeisena', async () => {
+    const r = await p.evaluate(() => { const o = quickGenerate(['Rinta','Pohkeet','Keskivartalo','Etureisi'], 8, false);
+      const ex = o.program.ex; const i1 = ex.findIndex(x => ['Pohkeet','Keskivartalo'].includes(groupOf(x.name)));
+      const lastComp = ex.map(x => isCompound(x.name) && !['Pohkeet','Keskivartalo'].includes(groupOf(x.name))).lastIndexOf(true);
+      const firstIso = ex.findIndex(x => !isCompound(x.name) && !['Pohkeet','Keskivartalo'].includes(groupOf(x.name)));
+      return [i1 === 4, firstIso < 0 || lastComp < firstIso, ex.slice(i1).every(x => ['Pohkeet','Keskivartalo'].includes(groupOf(x.name)))]; });
+    if(!r.every(Boolean)) throw new Error(r.join()); });
+  await T('selka vuorottelee leveys/paksuus', async () => {
+    const r = await p.evaluate(() => { let ok = true; for(let k = 0; k < 10; k++){ const o = quickGenerate(['Selkä'], 2, false);
+      const subs = new Set(o.program.ex.map(x => MG[x.name])); if(subs.size !== 2) ok = false; } return ok; });
+    if(!r) throw new Error('sama alaryhma kahdesti'); });
+  await T('sarjat: 8 liiketta -> 3 sarjaa, 4 liiketta -> 4, 11 -> 2; tuore kyykkyryhma -1', async () => {
+    const r = await p.evaluate(() => {
+      const a = quickGenerate(['Rinta','Selkä','Hauis','Ojentaja'], 8, false).program.ex.map(x => x.sets);
+      const b = quickGenerate(['Rinta','Selkä'], 4, false).program.ex.map(x => x.sets);
+      const c = quickGenerate(['Rinta','Selkä','Hauis','Ojentaja','Hartiat'], 11, false).program.ex.map(x => x.sets);
+      const e = quickGenerate(['Etureisi'], 1, false);
+      return [a.join(''), b.join(''), c.join(''), e.program.ex[0].sets, e.picks[0].why]; });
+    if(r[0] !== '33333333' || r[1] !== '4444' || !/^2+$/.test(r[2]) || r[3] !== 3 || !/48 h/.test(r[4])) throw new Error(JSON.stringify(r)); });
+  await T('toistot: yhdistelma 6-8 / 6-10, eristava 10-12 / 10-15, pohkeet 15-20', async () => {
+    const r = await p.evaluate(() => { const o = quickGenerate(['Rinta','Hauis','Pohkeet'], 6, false);
+      const comp = o.program.ex.find(x => isCompound(x.name) && groupOf(x.name) === 'Rinta');
+      const iso = o.program.ex.find(x => groupOf(x.name) === 'Hauis'); const calf = o.program.ex.find(x => groupOf(x.name) === 'Pohkeet');
+      return [comp.rmin, comp.rmax, comp.autoRmin, comp.autoRmax, iso.rmin, iso.rmax, iso.autoRmax, calf.rmin, calf.rmax].join(); });
+    if(r !== '6,8,6,10,10,12,15,15,20') throw new Error(r); });
+  await T('painot historiasta, viime treenin liikkeita valtetaan', async () => {
+    const r = await p.evaluate(() => { let bench = 0, w = 0; for(let k = 0; k < 40; k++){ const o = quickGenerate(['Rinta'], 1, false);
+      if(o.program.ex[0].name === 'Penkkipunnerrus tangolla'){ bench++; w = o.program.ex[0].w; } } return [bench, w]; });
+    if(r[0] > 20 || (r[0] > 0 && r[1] !== 90)) throw new Error(r.join()); });
+  await T('lammittely alkuun ja arvio kestosta', async () => {
+    const r = await p.evaluate(() => { const o = quickGenerate(['Rinta','Selkä'], 6, true); return [o.program.ex.length, isWarm(o.program.ex[0]), o.program.est, o.program.name]; });
+    if(r[0] !== 7 || !r[1] || !/noin \d+ min/.test(r[2]) || r[3] !== 'Pika: Rinta, Selkä') throw new Error(JSON.stringify(r)); });
+  await T('UI: valinta, arvonta, tallennus avaa editorin', async () => {
+    await p.locator('[data-tab="ohjelmat"]').click(); await p.waitForTimeout(250);
+    await p.locator('[data-quick]').click(); await p.waitForTimeout(300);
+    const wk = await p.locator('[data-qg="Rinta"]').locator('..').textContent(); if(!/\(3\)/.test(wk) && !/\(6\)/.test(wk)) throw new Error('viikkosarjat: ' + wk);
+    await p.locator('[data-qg="Hauis"]').check(); await p.locator('[data-qn]').fill('7');
+    await p.locator('[data-qgen]').click(); await p.waitForTimeout(350);
+    const rows = await p.locator('#sheetbg .idx').count(); if(rows !== 8) throw new Error('riveja ' + rows);
+    const before = await p.evaluate(() => S.programs.length);
+    await p.locator('[data-qsave]').click(); await p.waitForTimeout(350);
+    const after = await p.evaluate(() => [S.programs.length, S.programs[S.programs.length-1].ex.length, route.sheet.type]);
+    if(after[0] !== before + 1 || after[1] !== 8 || after[2] !== 'program') throw new Error(JSON.stringify(after));
+    await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(200);
+    await p.evaluate(() => { S.programs.pop(); save(); }); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

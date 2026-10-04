@@ -58,6 +58,13 @@ Käynnistää paikallisen palvelimen ja ajaa koko käyttöpolun oikeassa selaime
 painoruudukko, ennätyslogiikka, kehitysindeksit, kuvaaja ja asetukset.
 Aja aina ennen kuin muutokset viedään GitHubiin.
 
+## Pikaohjelma
+
+Ohjelmat-välilehden **Pikaohjelma** arpoo ohjelman valituista lihasryhmistä (`quickGenerate`).
+Säännöt: yhdistelmäliike ensin joka ryhmästä, noin 20–24 sarjaa per treeni ja enintään 9 per
+lihasryhmä, toistohaarukka liiketyypin mukaan, tutut liikkeet etusijalla, viime treenin liikkeitä
+vältetään, alle 48 h sitten treenattu ryhmä saa sarjan vähemmän. Perustelut ovat koodin kommentissa.
+
 ## Liikepankki
 
 Sovelluksen liikkeet ovat `app.js`:ssä `LIB`-vakiona, ryhmiteltynä lihasryhmittäin.

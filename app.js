@@ -1515,6 +1515,127 @@ function viewHistory(v){
 }
 
 /* ============ OHJELMAT ============ */
+/* ============ pikaohjelma ============
+
+   Arpoo ohjelman valituista lihasryhmistä. Säännöt ja niiden perusteet:
+   - YHDISTELMÄLIIKE ENSIN joka ryhmästä, eristävät perään. Järjestys ei
+     vaikuta lihaskasvuun mutta ensimmäisenä tehty liike kehittyy voimassa
+     eniten (Nunes ym. 2021, meta-analyysi) — siksi iso liike ensin.
+   - SARJAKATTO per lihasryhmä per treeni noin 8–10: sen yli laatu laskee
+     ja lisäsarjat kannattaa siirtää toiseen treeniin. Viikkotasolla
+     10–20 sarjaa/lihasryhmä on tuottava alue (Schoenfeld 2017; Pelland
+     ym. 2025). Sarjat per liike mitoitetaan niin, että koko treeni on
+     noin 20–24 sarjaa ja ryhmän summa pysyy katon alla.
+   - TOISTOT: yhdistelmäliikkeet matalammalla haarukalla, eristävät
+     korkeammalla; pohkeet ja keskivartalo korkeimmalla.
+   - PEILAUS HISTORIAAN: tutut liikkeet (joista on painot tiedossa) ovat
+     arvonnassa etusijalla; viime treenissä tehtyjä vältetään vaihtelun
+     vuoksi; alle 48 h sitten raskaasti treenattu ryhmä saa yhden sarjan
+     vähemmän; aloituspaino tulee viimeisimmästä työpainosta. */
+
+const QG = ["Rinta","Selkä","Hartiat","Hauis","Ojentaja","Etureisi","Takareisi ja pakarat","Pohkeet","Keskivartalo","Kyynärvarret ja ote"];
+const BIG = ["Selkä","Etureisi","Takareisi ja pakarat","Rinta","Hartiat"];
+const isCompound = n => /kyykky|maastaveto|soutu|leuanveto|ylätalja|alasveto|jalkaprässi|dippi|lantionnosto|hyvää huomenta|prässi|vetoliike|punnerrus|askel|astuminen|heilautus/i.test(n)
+                        && !/ojentajapunnerrus|ranskalainen|kickback|pullover/i.test(n);
+const QREPS = {                          /* [staattinen rmin,rmax, auto rmin,rmax] */
+  compound:  [6, 8, 6, 10],
+  isolation: [10, 12, 10, 15],
+  high:      [15, 20, 15, 25]            /* pohkeet, keskivartalo */
+};
+
+/* Ryhmän sarjat tällä viikolla ja viimeisin treenipäivä (lämmittelyt pois). */
+function groupStats(g){
+  const wk = weekKey(new Date().toISOString());
+  let week = 0, last = null, lastSets = 0;
+  S.sessions.forEach(sess => {
+    let n = 0;
+    sess.ex.forEach(x => { if(!isWarm(x) && groupOf(x.name) === g) n += x.sets.filter(t => t.ok).length; });
+    if(!n) return;
+    if(weekKey(sess.date) === wk) week += n;
+    if(!last || new Date(sess.date) > new Date(last)){ last = sess.date; lastSets = n; }
+  });
+  return {week: week, last: last, lastSets: lastSets,
+          recent: !!last && (Date.now() - new Date(last).getTime()) < 48 * 36e5 && lastSets >= 6};
+}
+
+function quickGenerate(groups, n, withWarm){
+  groups = QG.filter(g => groups.includes(g));
+  if(!groups.length || n < 1) return null;
+  const done = new Set();                                  /* tehty historiassa */
+  S.sessions.forEach(s => s.ex.forEach(x => { if(x.sets.some(t => t.ok)) done.add(x.name); }));
+  const lastSess = S.sessions[S.sessions.length - 1];
+  const lastNames = new Set(lastSess ? lastSess.ex.map(x => x.name) : []);
+
+  /* 1. Liikkeiden jako ryhmille: tasan, loput isoille ryhmille. */
+  const per = {}; groups.forEach(g => { per[g] = Math.floor(n / groups.length); });
+  let rest = n - groups.length * Math.floor(n / groups.length);
+  [...groups].sort((a, b) => (BIG.indexOf(a) + 1 || 99) - (BIG.indexOf(b) + 1 || 99)).forEach(g => { if(rest > 0){ per[g]++; rest--; } });
+
+  const pool = g => LIB.flatMap(gr => gr.g.split(" — ")[0] === g ? gr.items.map(i => Object.assign({sub: gr.g}, i)) : [])
+                       .filter(i => !i.warm);
+  const fam = nm => nm.toLowerCase().replace(/ (smith-laitteessa|tangolla|käsipainoilla|taljassa|laitteessa).*$/, "").split(/[ ,]/)[0];
+  const draw = (cands, used, usedFam) => {
+    const ok = cands.filter(i => !used.has(i.n) && !usedFam.has(fam(i.n)));
+    const c = ok.length ? ok : cands.filter(i => !used.has(i.n));
+    if(!c.length) return null;
+    /* painotus: tuttu liike ×3, viime treenissä tehty ×0,3, pelkkä kehonpaino ×0,5 */
+    const w = c.map(i => (done.has(i.n) ? 3 : 1) * (lastNames.has(i.n) ? 0.3 : 1) * (i.e === "kehonpaino" ? 0.5 : 1));
+    let r = Math.random() * w.reduce((a, b) => a + b, 0);
+    for(let k = 0; k < c.length; k++){ r -= w[k]; if(r <= 0) return c[k]; }
+    return c[c.length - 1];
+  };
+
+  const picks = [];
+  groups.forEach(g => {
+    const k = per[g]; if(!k) return;
+    const P = pool(g), used = new Set(), usedFam = new Set();
+    const st = groupStats(g);
+    /* Treenin kokonaismäärä noin 20–24 sarjaa, ryhmän summa enintään 9. */
+    let sets = Math.min(4, Math.max(2, Math.round(22 / n)), Math.max(2, Math.floor(9 / k)));
+    if(st.recent) sets = Math.max(2, sets - 1);
+    const subs = [...new Set(P.map(i => i.sub))];                /* Selkä: leveys / paksuus vuorotellen */
+    for(let j = 0; j < k; j++){
+      const sub = subs[j % subs.length];
+      let cands = P.filter(i => i.sub === sub);
+      let item = j === 0 || (subs.length > 1 && j < subs.length)
+        ? (draw(cands.filter(i => isCompound(i.n)), used, usedFam) || draw(cands, used, usedFam))
+        : (draw(cands.filter(i => !isCompound(i.n)), used, usedFam) || draw(cands, used, usedFam));
+      if(!item) item = draw(P, used, usedFam);
+      if(!item) break;
+      used.add(item.n); usedFam.add(fam(item.n));
+      const comp = isCompound(item.n);
+      const kind = (g === "Pohkeet" || g === "Keskivartalo") ? "high" : comp ? "compound" : "isolation";
+      const q = QREPS[kind];
+      const L = lastFor(item.n);
+      const lastW = L ? L.ex.sets.filter(t => t.ok).slice(-1)[0].w : 0;
+      const def = defFromLib(item, {sets: sets, rmin: q[0], rmax: q[1], w: lastW});
+      if(!isTime(def)){ def.autoRmin = q[2]; def.autoRmax = q[3]; }
+      def.sets = sets;
+      picks.push({def: def, g: g, comp: comp, big: BIG.includes(g), known: done.has(item.n),
+                  why: (comp ? "yhdistelmäliike" : kind === "high" ? "korkeat toistot" : "eristävä") +
+                       (done.has(item.n) ? " · painot tiedossa" : " · uusi liike") +
+                       (st.recent ? " · ryhmä treenattu alle 48 h sitten, −1 sarja" : "")});
+    }
+  });
+
+  /* 2. Järjestys: isojen ryhmien yhdistelmäliikkeet, muut yhdistelmät,
+        eristävät, lopuksi pohkeet ja keskivartalo. */
+  const rank = p => (p.g === "Pohkeet" || p.g === "Keskivartalo" || p.g === "Kyynärvarret ja ote") ? 3 : p.comp ? (p.big ? 0 : 1) : 2;
+  picks.sort((a, b) => rank(a) - rank(b));
+  const ex = picks.map(p => p.def);
+  if(withWarm){
+    const w = LIB[0].items.find(i => i.n === "Dynaaminen kehonpainolämmittely");
+    if(w) ex.unshift(defFromLib(w));
+  }
+  const totalSets = ex.reduce((a, x) => a + (isWarm(x) ? 0 : x.sets), 0);
+  const mins = Math.round((totalSets * 2.5 + ex.filter(x => !isWarm(x)).length * 2 + (withWarm ? 5 : 0)) / 5) * 5;
+  return {
+    program: {id: uid("p"), name: "Pika: " + groups.map(g => g.split(" ")[0]).join(", "),
+              est: "noin " + mins + " min", ex: ex},
+    picks: picks, totalSets: totalSets
+  };
+}
+
 function viewPrograms(v){
   const wrap = el('<div class="stack"></div>');
   const c = el('<div class="card"></div>');
@@ -1524,7 +1645,9 @@ function viewPrograms(v){
       '<div style="font-size:13px;color:var(--dim)">'+p.ex.length+' liikettä · '+esc(p.est||"")+'</div></div>'+
       '<span class="chev">'+I.chev+'</span></button>').join("");
   wrap.appendChild(c);
-  wrap.appendChild(el('<button class="btn wide" data-newp="1">+ Uusi ohjelma</button>'));
+  wrap.appendChild(el('<div class="grid2">'+
+    '<button class="btn" data-newp="1">+ Uusi ohjelma</button>'+
+    '<button class="btn primary" data-quick="1">Pikaohjelma</button></div>'));
   wrap.appendChild(el('<div class="card pad" style="font-size:13.5px;color:var(--dim)">'+
     '<div class="eyebrow" style="margin-bottom:6px">Painon askel</div>'+
     'Askel määrää paljonko + ja − muuttavat painoa. Oletukset: tanko 2,5 kg · talja 2,5 kg · laite 5 kg · Smith 2,5 kg · kehonpaino 1 kg. Käsipainoilla askel on kiinteä: 1 kg kymmeneen kiloon asti, sen jälkeen 2,5 kg. Käsipainojen paino tarkoittaa aina painoa per käsi. Smith-laitteen tangon paino vaihtelee laitteittain — kirjaa se aina samalla tavalla, esim. pelkät levyt.</div>'));
@@ -1867,6 +1990,47 @@ function openSheet(){
     body.appendChild(el('<button class="btn wide ghost" data-delp="1">Poista ohjelma</button>'));
   }
 
+
+  if(s.type==="quick"){
+    const q = route.quick = route.quick || {groups:["Rinta","Selkä"], n:6, warm:true, out:null};
+    bar.innerHTML = '<h2>Pikaohjelma</h2><button class="btn sm ghost" data-close="1">'+I.x+'</button>';
+    body.appendChild(el(
+      '<div class="card pad">'+
+        '<div class="eyebrow">Lihasryhmät</div>'+
+        '<p style="font-size:13px;color:var(--dim);margin:4px 0 10px">Suluissa tällä viikolla tehdyt sarjat. '+
+          'Tuottava alue on noin 10–20 sarjaa viikossa per lihasryhmä.</p>'+
+        '<div class="qgrid">'+QG.map(g => { const st = groupStats(g);
+          return '<label class="chkrow"><input type="checkbox" data-qg="'+esc(g)+'"'+(q.groups.includes(g)?' checked':'')+'>'+
+            '<span>'+esc(g)+' <span class="num" style="color:var(--dim);font-size:12.5px">('+st.week+')</span></span></label>'; }).join("")+
+        '</div>'+
+        '<div class="grid2" style="margin-top:12px">'+
+          '<label class="f"><span class="eyebrow">Liikkeitä</span><input inputmode="numeric" data-qn="1" value="'+q.n+'"></label>'+
+          '<label class="chkrow" style="align-self:end;padding-bottom:10px"><input type="checkbox" data-qw="1"'+(q.warm?' checked':'')+'><span>Lämmittely alkuun</span></label>'+
+        '</div>'+
+        '<button class="btn wide primary" data-qgen="1" style="margin-top:12px">'+(q.out ? 'Arvo uudelleen' : 'Arvo ohjelma')+'</button>'+
+      '</div>'));
+    if(q.out){
+      const o = q.out;
+      const c = el('<div class="card"></div>');
+      c.innerHTML = '<div class="pad" style="padding-bottom:6px"><div class="eyebrow">'+esc(o.program.name)+' · '+esc(o.program.est)+' · '+o.totalSets+' sarjaa</div></div>'+
+        o.program.ex.map((x, i) => {
+          const pk = o.picks.find(p => p.def === x);
+          return '<div class="pad" style="border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-start">'+
+            '<span class="idx">'+(i+1)+'</span>'+
+            '<div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(x.name)+'</div>'+
+            '<div style="font-size:12.5px;color:var(--dim)">'+
+              (isWarm(x) ? 'lämmittely · '+x.min+' min' :
+                '<span class="num">'+x.sets+' × '+(isAuto() && x.autoRmin ? x.autoRmin+'–'+x.autoRmax : reps(x))+repUnit(x)+
+                (x.w ? ' · '+fmt(x.w)+' kg' : '')+'</span>'+(pk ? ' · '+esc(pk.g.split(" ")[0])+' · '+esc(pk.why) : ''))+
+            '</div></div></div>';
+        }).join("");
+      body.appendChild(c);
+      body.appendChild(el('<button class="btn wide primary" data-qsave="1">Tallenna ja muokkaa</button>'));
+      body.appendChild(el('<p style="font-size:12.5px;color:var(--dim);margin:0 4px">Painot tulevat liikkeen omasta historiasta. '+
+        'Uusissa liikkeissä paino on 0 — aseta se muokkauksessa tai ensimmäisessä treenissä. Ohjelmaa voi muokata kuten muitakin.</p>'));
+    }
+  }
+
   if(s.type==="picker"){
     const ptitle = s.target === "workout" ? "Lisää liike treeniin"
                  : (s.exi === null ? "Lisää liike" : "Vaihda liike");
@@ -1926,6 +2090,22 @@ document.addEventListener("click", async e => {
   if(d.sess){ route.sheet={type:"session", id:d.sess}; openSheet(); return; }
   if(d.exname){ route.sheet={type:"exercise", name:d.exname}; openSheet(); return; }
   if(d.editp){ route.sheet={type:"program", id:d.editp}; openSheet(); return; }
+  if(d.quick){ route.quick = null; route.sheet={type:"quick"}; openSheet(); return; }
+  if(d.qgen){
+    const q = route.quick; const root = document.getElementById("sheetbg");
+    q.groups = [...root.querySelectorAll("[data-qg]:checked")].map(i => i.dataset.qg);
+    q.n = Math.min(14, Math.max(1, parseInt(root.querySelector("[data-qn]").value, 10) || 6));
+    q.warm = root.querySelector("[data-qw]").checked;
+    if(!q.groups.length){ toast("Valitse ainakin yksi lihasryhmä."); return; }
+    q.out = quickGenerate(q.groups, q.n, q.warm);
+    openSheet(); return;
+  }
+  if(d.qsave){
+    const q = route.quick; if(!q || !q.out) return;
+    S.programs.push(q.out.program); save();
+    route.sheet = {type:"program", id:q.out.program.id}; route.quick = null;
+    render(); openSheet(); toast("Pikaohjelma tallennettu."); return;
+  }
   if(d.newp){
     const p = {id:uid("p"), name:"Uusi ohjelma", est:"", ex:[]};
     S.programs.push(p); save(); route.sheet={type:"program", id:p.id}; render(); openSheet(); return;
