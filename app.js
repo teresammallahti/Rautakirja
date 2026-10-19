@@ -50,7 +50,8 @@ const LIB = [
   {g:"Hauis", items:[{n:"Hauiskääntö vinotangolla",e:"tanko"}, {n:"Bayesian curl",e:"talja"}, {n:"Hauiskääntö käsipainoilla",e:"käsipaino"}, {n:"Hauiskääntö vuorotellen kiertäen",e:"käsipaino"}, {n:"Vasarakääntö",e:"käsipaino"}, {n:"Hauiskääntö vinopenkissä",e:"käsipaino"}, {n:"Hauiskääntö taljassa suoralla kahvalla",e:"talja"}, {n:"Scott-penkki tangolla (preacher curl)",e:"tanko"}, {n:"Hauiskääntö laitteessa",e:"laite"}, {n:"Keskittynyt hauiskääntö",e:"käsipaino"}]},
   {g:"Ojentaja", items:[{n:"Ojentaja niskan takaa taljassa, suora kahva",e:"talja"}, {n:"Ojentajapunnerrus taljassa köydellä",e:"talja"}, {n:"Ojentajapunnerrus taljassa suoralla kahvalla",e:"talja"}, {n:"Ranskalainen punnerrus tangolla",e:"tanko",sf:"ranska"}, {n:"Ranskalainen punnerrus käsipainoilla",e:"käsipaino"}, {n:"Kapea penkkipunnerrus",e:"tanko",sf:"penkki"}, {n:"Dippi ojentajalle, pysty vartalo",e:"kehonpaino"}, {n:"Ojentajapunnerrus taljassa yhdellä kädellä",e:"talja"}, {n:"Ojentajan ojennus käsipainolla kumarassa (kickback)",e:"käsipaino"}, {n:"Dippilaite",e:"laite"}, {n:"Kapea penkkipunnerrus Smith-laitteessa",e:"smith",sf:"smith"}]},
   {g:"Etureisi", items:[{n:"Polven ojennus",e:"laite"}, {n:"Askelkyykkykävely",e:"käsipaino"}, {n:"Jalkaprässi",e:"laite",sf:"laite"}, {n:"Bulgarialainen askelkyykky",e:"käsipaino"}, {n:"Askelkyykky paikallaan",e:"käsipaino"}, {n:"Astuminen korokkeelle",e:"käsipaino"}, {n:"Goblet-kyykky",e:"käsipaino"}, {n:"Takakyykky",e:"tanko",sf:"kyykky"}, {n:"Etukyykky",e:"tanko",sf:"etukyykky"}, {n:"Kyykky turvatangolla (safety squat bar)",e:"tanko",sf:"kyykky"}, {n:"Hack-kyykky laitteessa",e:"laite",sf:"laite"}, {n:"Smith-kyykky",e:"smith",sf:"smith"}, {n:"Bulgarialainen askelkyykky Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Askelkyykky Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Etukyykky Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Pendulum-kyykky laitteessa",e:"laite",sf:"laite"}]},
-  {g:"Takareisi ja pakarat", items:[{n:"Romanialainen maastaveto",e:"tanko",sf:"veto"}, {n:"Polven koukistus maaten",e:"laite"}, {n:"Polven koukistus istuen",e:"laite"}, {n:"Maastaveto",e:"tanko",sf:"veto"}, {n:"Romanialainen maastaveto käsipainoilla",e:"käsipaino"}, {n:"Lantionnosto tangolla (hip thrust)",e:"tanko",sf:"thrust"}, {n:"Selänojennus / hyperextensio",e:"kehonpaino"}, {n:"Pakaran ojennus taljassa",e:"talja"}, {n:"Lonkan loitonnus laitteessa",e:"laite"}, {n:"Sumomaastaveto",e:"tanko",sf:"veto"}, {n:"Trap bar -maastaveto",e:"tanko",sf:"veto"}, {n:"Hyvää huomenta tangolla",e:"tanko",sf:"huomenta"}, {n:"Nordic-takareisi",e:"kehonpaino"}, {n:"Kahvakuulaheilautus",e:"käsipaino"}, {n:"Lantionnosto laitteessa",e:"laite"}, {n:"Lonkan lähennys laitteessa",e:"laite"}, {n:"Romanialainen maastaveto Smith-laitteessa",e:"smith"}, {n:"Lantionnosto Smith-laitteessa",e:"smith",sf:"thrust"}, {n:"Hyvää huomenta Smith-laitteessa",e:"smith",sf:"smith"}]},
+  {g:"Takareisi", items:[{n:"Romanialainen maastaveto",e:"tanko",sf:"veto"}, {n:"Polven koukistus istuen",e:"laite"}, {n:"Polven koukistus maaten",e:"laite"}, {n:"Maastaveto",e:"tanko",sf:"veto"}, {n:"Romanialainen maastaveto käsipainoilla",e:"käsipaino"}, {n:"Nordic-takareisi",e:"kehonpaino"}, {n:"Polven koukistus seisten yhdellä jalalla",e:"laite"}, {n:"Selänojennus / hyperextensio",e:"kehonpaino"}, {n:"Hyvää huomenta tangolla",e:"tanko",sf:"huomenta"}, {n:"Sumomaastaveto",e:"tanko",sf:"veto"}, {n:"Trap bar -maastaveto",e:"tanko",sf:"veto"}, {n:"Romanialainen maastaveto Smith-laitteessa",e:"smith"}, {n:"Hyvää huomenta Smith-laitteessa",e:"smith",sf:"smith"}]},
+  {g:"Pakarat", items:[{n:"Lantionnosto tangolla (hip thrust)",e:"tanko",sf:"thrust"}, {n:"Lantionnosto laitteessa",e:"laite"}, {n:"Lantionnosto Smith-laitteessa",e:"smith",sf:"thrust"}, {n:"Lantionnosto lattialta (glute bridge)",e:"kehonpaino"}, {n:"Pakaran ojennus taljassa",e:"talja"}, {n:"Pakaran potku laitteessa",e:"laite"}, {n:"Lonkan loitonnus laitteessa",e:"laite"}, {n:"Lonkan loitonnus taljassa",e:"talja"}, {n:"Lonkan lähennys laitteessa",e:"laite"}, {n:"Kahvakuulaheilautus",e:"käsipaino"}]},
   {g:"Pohkeet", items:[{n:"Pohjenousu seisten korokkeelta",e:"käsipaino"}, {n:"Pohjenousu laitteessa seisten",e:"laite"}, {n:"Pohjenousu istuen",e:"laite"}, {n:"Pohjenousu jalkaprässissä",e:"laite"}, {n:"Säären nosto (tibialis)",e:"kehonpaino"}, {n:"Pohjenousu Smith-laitteessa",e:"smith"}, {n:"Pohjenousu istuen Smith-laitteessa",e:"smith"}]},
   {g:"Keskivartalo", items:[{n:"Vatsarutistus taljassa polvillaan",e:"talja"}, {n:"Riipuntapolvennosto",e:"kehonpaino"}, {n:"Riipuntajalannosto suorin jaloin",e:"kehonpaino"}, {n:"Lankku",e:"kehonpaino",u:"s"}, {n:"Sivulankku",e:"kehonpaino",u:"s"}, {n:"Ab wheel -rullaus",e:"kehonpaino"}, {n:"Pallof press taljassa",e:"talja"}, {n:"Vatsaliike laitteessa",e:"laite"}, {n:"Farmarikävely",e:"käsipaino"}, {n:"Dead bug",e:"kehonpaino"}, {n:"Sivutaivutus käsipainolla",e:"käsipaino"}, {n:"Puunhakkuu taljassa (woodchop)",e:"talja"}, {n:"Vatsarutistus maaten",e:"kehonpaino"}]},
   {g:"Kyynärvarret ja ote", items:[{n:"Ranteen koukistus tangolla",e:"tanko"}, {n:"Ranteen ojennus tangolla",e:"tanko"}, {n:"Tangosta riippuminen",e:"kehonpaino",u:"s",st:2.5}, {n:"Ranteen koukistus käsipainoilla",e:"käsipaino"}, {n:"Levypito sormin",e:"kehonpaino",u:"s",st:2.5}]},
@@ -1601,8 +1602,8 @@ function viewHistory(v){
      vuoksi; alle 48 h sitten raskaasti treenattu ryhmä saa yhden sarjan
      vähemmän; aloituspaino tulee viimeisimmästä työpainosta. */
 
-const QG = ["Rinta","Selkä","Hartiat","Hauis","Ojentaja","Etureisi","Takareisi ja pakarat","Pohkeet","Keskivartalo","Kyynärvarret ja ote"];
-const BIG = ["Selkä","Etureisi","Takareisi ja pakarat","Rinta","Hartiat"];
+const QG = ["Rinta","Selkä","Hartiat","Hauis","Ojentaja","Etureisi","Takareisi","Pakarat","Pohkeet","Keskivartalo","Kyynärvarret ja ote"];
+const BIG = ["Selkä","Etureisi","Takareisi","Rinta","Pakarat","Hartiat"];
 const isCompound = n => /kyykky|maastaveto|soutu|leuanveto|ylätalja|alasveto|jalkaprässi|dippi|lantionnosto|hyvää huomenta|prässi|vetoliike|punnerrus|askel|astuminen|heilautus/i.test(n)
                         && !/ojentajapunnerrus|ranskalainen|kickback|pullover/i.test(n);
 const QREPS = {                          /* [staattinen rmin,rmax, auto rmin,rmax] */
@@ -1637,8 +1638,13 @@ const SECONDARY = [
   [/penkkipunnerrus|rintaprässi|^punnerrus|dippi rinnalle/i, ["Ojentaja", "Hartiat"]],
   [/ylätalja|leuanveto|alasveto|soutu|vetoliike/i,            ["Hauis"]],
   [/pystypunnerrus|arnold|olkapääpunnerrus|pystysoutu/i,      ["Ojentaja"]],
-  [/kyykky|jalkaprässi|askelkyykky|astuminen/i,               ["Takareisi ja pakarat"]],
-  [/^maastaveto|sumomaastaveto|trap bar/i,                    ["Selkä"]],
+  /* Kyykyt ja prässit kasvattavat pakaraa mutta tuskin takareittä (Kubo 2019;
+     hip thrust vs. kyykky -vertailu): takareisi tekee kyykyssä työtä
+     etureittä vastaan polvessa. Siksi kyykky → vain pakarat. */
+  [/kyykky|jalkaprässi|askelkyykky|astuminen/i,               ["Pakarat"]],
+  [/^maastaveto|sumomaastaveto|trap bar/i,                    ["Selkä", "Pakarat"]],
+  [/romanialainen|hyvää huomenta|selänojennus/i,              ["Pakarat"]],
+  [/kahvakuulaheilautus/i,                                    ["Takareisi"]],
   [/dippi ojentajalle|dippilaite/i,                           ["Rinta"]]
 ];
 function weekVolume(days){
@@ -1690,7 +1696,7 @@ function volumeCard(){
     '<div class="vlist">'+rows+'</div>'+
     '<p style="font-size:12.5px;color:var(--dim);margin:10px 0 0">Harmaa kaista = tuottava alue 10–20 sarjaa viikossa. '+
       'Pieni luku on epäsuoria sarjoja: yhdistelmäliike lasketaan toissijaiselle lihakselle puolikkaana '+
-      '(penkki → ojentaja ja hartiat, vedot → hauis, kyykyt → takareisi ja pakarat).</p>';
+      '(penkki → ojentaja ja hartiat, vedot → hauis, kyykyt → pakarat).</p>';
   return c;
 }
 
@@ -1775,11 +1781,20 @@ function quickGenerate(groups, n, withWarm){
 function viewPrograms(v){
   const wrap = el('<div class="stack"></div>');
   const c = el('<div class="card"></div>');
-  c.innerHTML = S.programs.map(p =>
-    '<button class="rowlink" data-editp="'+p.id+'">'+
-      '<div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(p.name)+'</div>'+
-      '<div style="font-size:13px;color:var(--dim)">'+p.ex.length+' liikettä · '+esc(p.est||"")+(p.rot===false?' · ei rotaatiossa':'')+'</div></div>'+
-      '<span class="chev">'+I.chev+'</span></button>').join("");
+  /* Järjestys täällä on myös järjestys kotinäkymässä. ↑ ensimmäisellä ja
+     ↓ viimeisellä kiertävät toiseen päähän, kuten liikkeissä. */
+  const many = S.programs.length > 1;
+  c.innerHTML = S.programs.map((p,i) =>
+    '<div class="prow">'+
+      '<button class="rowlink" data-editp="'+p.id+'">'+
+        '<div style="flex:1;min-width:0"><div style="font-weight:600">'+esc(p.name)+'</div>'+
+        '<div style="font-size:13px;color:var(--dim)">'+p.ex.length+' liikettä · '+esc(p.est||"")+(p.rot===false?' · ei rotaatiossa':'')+'</div></div>'+
+        '<span class="chev">'+I.chev+'</span></button>'+
+      (many ? '<span class="pmv">'+
+        '<button class="btn sm ghost" data-pmv="'+i+'" data-dir="-1" aria-label="'+(i===0?'Siirrä viimeiseksi':'Siirrä ylös')+'">↑</button>'+
+        '<button class="btn sm ghost" data-pmv="'+i+'" data-dir="1" aria-label="'+(i===S.programs.length-1?'Siirrä ensimmäiseksi':'Siirrä alas')+'">↓</button>'+
+      '</span>' : '')+
+    '</div>').join("");
   wrap.appendChild(c);
   wrap.appendChild(el('<div class="grid2">'+
     '<button class="btn" data-newp="1">+ Uusi ohjelma</button>'+
@@ -2285,6 +2300,13 @@ document.addEventListener("click", async e => {
   if(d.cancel){ if(await ask("Hylätäänkö treeni? Kirjatut sarjat katoavat.","Hylkää")){ S.active=null; save(); render(); releaseWake(); } return; }
 
   /* --- ohjelmaeditori --- */
+  if(d.pmv!==undefined){
+    const n = S.programs.length, i = +d.pmv; if(n < 2) return;
+    const j = (i + (+d.dir) + n) % n;
+    if(Math.abs(j - i) === 1) [S.programs[i], S.programs[j]] = [S.programs[j], S.programs[i]];
+    else S.programs.splice(j, 0, S.programs.splice(i, 1)[0]);
+    save(); render(); return;
+  }
   if(d.mv!==undefined){
     const p=curProg(), n=p.ex.length, i=+d.mv, dir=+d.dir;
     if(n<2) return;

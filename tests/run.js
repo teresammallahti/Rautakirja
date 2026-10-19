@@ -525,8 +525,8 @@ const group = n => console.log('\n--- ' + n + ' ---');
     ]; save(); });
   await p.reload({waitUntil:'load'}); await p.waitForTimeout(350);
   await T('weekVolume: suorat ja epasuorat oikein, 7 pv raja, lammittely ei laske', async () => {
-    const v = await p.evaluate(() => { const v = weekVolume(7); return [v.Rinta.direct, v.Rinta.indirect, v.Ojentaja.indirect, v.Hartiat.indirect, v.Hauis.direct, v.Hauis.indirect, v['Takareisi ja pakarat'].indirect, v.Pohkeet.direct].join(); });
-    if(v !== '8,0,4,4,3,1.5,1.5,0') throw new Error(v); });
+    const v = await p.evaluate(() => { const v = weekVolume(7); return [v.Rinta.direct, v.Rinta.indirect, v.Ojentaja.indirect, v.Hartiat.indirect, v.Hauis.direct, v.Hauis.indirect, v.Pakarat.indirect, v.Takareisi.indirect, v.Pohkeet.direct].join(); });
+    if(v !== '8,0,4,4,3,1.5,1.5,0,0') throw new Error(v); });
   await T('lowGroups: vain treenatut ryhmat alle 10, pienin ensin', async () => {
     const r = await p.evaluate(() => lowGroups(5).map(x => x.g + ':' + x.n).join('|'));
     if(r !== 'Pohkeet:0|Selkä:3|Etureisi:3|Hauis:4.5|Rinta:8') throw new Error(r); });
@@ -609,6 +609,40 @@ const group = n => console.log('\n--- ' + n + ' ---');
       const img = b.querySelector('img'); img.onload = () => res([b.classList.contains('nologo'), getComputedStyle(img).display]); img.onerror = () => res(['virhe']);
       img.src = './icon-192.png?' + Date.now(); }));   /* CSP sallii vain oman originin kuvat, ei data-URLeja */
     if(r[0] !== false || r[1] !== 'block') throw new Error(JSON.stringify(r)); });
+
+  group('Ohjelmien jarjestys ja takareisi/pakarat');
+  await p.evaluate(() => { S.sessions = []; S.active = null; S.settings = defaultSettings();
+    S.programs = ['A','B','C'].map(n => ({id:'o'+n, name:n, est:'', rot:true, ex:[]})); save(); route.tab = 'ohjelmat'; route.sheet = null; render(); });
+  const order = () => p.evaluate(() => S.programs.map(x => x.name).join(''));
+  await T('ohjelmalistassa siirtonapit, ylin ylos -> viimeiseksi', async () => {
+    if(await p.locator('[data-pmv]').count() !== 6) throw new Error('nappeja ' + await p.locator('[data-pmv]').count());
+    await p.locator('[data-pmv="0"][data-dir="-1"]').click(); await p.waitForTimeout(200);
+    const o = await order(); if(o !== 'BCA') throw new Error(o); });
+  await T('alin alas -> ensimmaiseksi, keskimmainen pykala', async () => {
+    await p.locator('[data-pmv="2"][data-dir="1"]').click(); await p.waitForTimeout(200);
+    let o = await order(); if(o !== 'ABC') throw new Error(o);
+    await p.locator('[data-pmv="1"][data-dir="1"]').click(); await p.waitForTimeout(200);
+    o = await order(); if(o !== 'ACB') throw new Error(o); });
+  await T('jarjestys nakyy kotinakymassa ja rivin painallus avaa editorin', async () => {
+    await p.locator('[data-tab="treeni"]').click(); await p.waitForTimeout(200);
+    const h = await p.evaluate(() => [...document.querySelectorAll('#view h2')].map(x => x.textContent).join(''));
+    if(h !== 'ACB') throw new Error(h);
+    await p.locator('[data-tab="ohjelmat"]').click(); await p.waitForTimeout(200);
+    await p.locator('[data-editp="oC"]').click(); await p.waitForTimeout(250);
+    if(await p.evaluate(() => route.sheet && route.sheet.type) !== 'program') throw new Error('ei editoria');
+    await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(150); });
+  await T('liikepankissa erilliset Takareisi ja Pakarat', async () => {
+    const r = await p.evaluate(() => [MG['Polven koukistus istuen'], MG['Lantionnosto tangolla (hip thrust)'], MG['Romanialainen maastaveto'], MG['Lonkan loitonnus laitteessa'],
+      LIB.some(g => g.g === 'Takareisi ja pakarat'), QG.includes('Takareisi') && QG.includes('Pakarat')].join());
+    if(r !== 'Takareisi,Pakarat,Takareisi,Pakarat,false,true') throw new Error(r); });
+  await T('kyykky -> epasuorasti pakaroille, ei takareidelle; RDL -> pakaroille', async () => {
+    const r = await p.evaluate(() => { const mk = (n, k) => ({name:n, equip:'tanko', sets:Array.from({length:k}, () => ({w:50, r:8, ok:true}))});
+      S.sessions = [{id:'tp', programId:'x', name:'T', date:new Date().toISOString(), startedAt:0, finishedAt:1, ex:[mk('Takakyykky', 4), mk('Romanialainen maastaveto', 2)]}];
+      const v = weekVolume(7); return [v.Pakarat.indirect, v.Takareisi.direct, v.Takareisi.indirect, v.Etureisi.direct].join(); });
+    if(r !== '3,2,0,4') throw new Error(r); });
+  await T('pikaohjelma: pakarat ja takareisi omina ryhminaan', async () => {
+    const r = await p.evaluate(() => { const o = quickGenerate(['Takareisi','Pakarat'], 4, false); return o.program.ex.map(x => groupOf(x.name)).sort().join(); });
+    if(r !== 'Pakarat,Pakarat,Takareisi,Takareisi') throw new Error(r); });
 
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });

@@ -70,6 +70,11 @@ romahdus, tauko, eri asetukset) automaattimoottorin ja indeksien läpi ja tarkis
 invariantit (ei NaN, enintään askel per treeni, kevennys ei laske indeksiä, turvaventtiili
 toimii). Aja kun moottorin tai indeksien logiikkaa muutetaan.
 
+## Ohjelmien järjestys
+
+Ohjelmat-välilehden ↑ ↓ -napit muuttavat ohjelmien järjestystä; sama järjestys näkyy kotinäkymässä.
+Ylimmän ↑ ja alimman ↓ kiertävät toiseen päähän.
+
 ## Rotaatio
 
 Ohjelmalla on kenttä `rot`. Rotaatiossa olevat vuorottelevat ja kotinäkymä merkitsee seuraavan
@@ -96,6 +101,8 @@ Sovelluksen liikkeet ovat `app.js`:ssä `LIB`-vakiona, ryhmiteltynä lihasryhmit
 Ensimmäinen ryhmä on alkulämmittely: kesto minuutteina ja muistilista, jota voi muokata
 ohjelman muokkauksessa. Lämmittelyt eivät kuulu volyymiin, ennätyksiin eivätkä indekseihin.
 Pitoliikkeet (`unit: "s"`, esim. tangosta riippuminen ja lankku) kirjataan sekunteina.
+Takareisi ja pakarat ovat omat ryhmänsä: takareisi kasvaa parhaiten polven koukistuksista ja
+lonkkasaranoista, pakara kyykyistä ja lantionnostoista, eikä kyykky juuri kasvata takareittä.
 Riskialttiilla liikkeillä (`sf`-tunniste, tekstit `SAFETY`-taulussa) on turvahuomio, joka näkyy
 treenissä ja korostuu maksimisarjan edellä.
 Muokattava lähdeaineisto on projektikansion `Liikepankki.md`; jos sitä muuttaa, `LIB` on
