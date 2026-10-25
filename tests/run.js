@@ -644,6 +644,58 @@ const group = n => console.log('\n--- ' + n + ' ---');
     const r = await p.evaluate(() => { const o = quickGenerate(['Takareisi','Pakarat'], 4, false); return o.program.ex.map(x => groupOf(x.name)).sort().join(); });
     if(r !== 'Pakarat,Pakarat,Takareisi,Takareisi') throw new Error(r); });
 
+  group('Sarjamallit');
+  await p.evaluate(() => { S.sessions = []; S.active = null;
+    S.settings = Object.assign(defaultSettings(), {mode:'automaattinen', cycleStart:new Date().toISOString()});
+    S.programs = [{id:'sm', name:'S', est:'', rot:true, ex:[
+      {id:'a', name:'Penkkipunnerrus tangolla', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:80},
+      {id:'b', name:'Maastaveto', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:140, noAmrap:true}]}];
+    save(); route.tab = 'treeni'; route.sheet = null; render(); });
+  const plan = sch => p.evaluate(sch => { S.settings.scheme = sch; const a = autoEntry(S.programs[0].ex[0]), b = autoEntry(S.programs[0].ex[1]);
+    return [a.sets.length, a.sets.map(t => t.a ? 1 : 0).join(''), b.sets.length, b.sets.map(t => t.a ? 1 : 0).join('')].join(','); }, sch);
+  await T('tiivis: 2 sarjaa, molemmat MAX; maastaveto 2 ilman MAXia', async () => { const r = await plan('tiivis'); if(r !== '2,11,2,00') throw new Error(r); });
+  await T('perus: 3 sarjaa, viimeinen MAX', async () => { const r = await plan('perus'); if(r !== '3,001,3,000') throw new Error(r); });
+  await T('laaja: 4 sarjaa, viimeinen MAX', async () => { const r = await plan('laaja'); if(r !== '4,0001,4,0000') throw new Error(r); });
+  await T('ohjelman mukaan: liikkeen sarjat ja vanha kaytos', async () => { const r = await plan(null); if(r !== '3,001,3,000') throw new Error(r); });
+  await T('sarjamalli ohittaa ramp-lisasarjan ja kevennys puolittaa', async () => {
+    const r = await p.evaluate(() => { S.settings.scheme = 'tiivis';
+      S.settings.cycleStart = new Date(Date.now() - 3.5*7*864e5).toISOString();   /* viikko 4: ramp */
+      const ramp = [cycleInfo().ramp, autoPlan(S.programs[0].ex[0]).sets];
+      S.settings.scheme = 'laaja'; S.settings.cycleStart = new Date(Date.now() - 5.5*7*864e5).toISOString();   /* viikko 6: kevennys */
+      const dl = autoPlan(S.programs[0].ex[0]); const r = [...ramp, dl.sets, dl.amrap, dl.amrapAll].join();
+      S.settings.cycleStart = new Date().toISOString(); return r; });
+    if(r !== 'false,2,2,false,false') throw new Error(r); });
+  await T('sarjan lisays tiiviissa pitaa kaikki MAXina', async () => {
+    const r = await p.evaluate(() => { S.settings.scheme = 'tiivis'; const x = autoEntry(S.programs[0].ex[0]); x.sets.push({w:80, r:8, ok:false}); reAmrap(x); return x.sets.map(t => t.a ? 1 : 0).join(''); });
+    if(r !== '111') throw new Error(r); });
+  await T('treenivihje: "Kaikki sarjat" tiiviissa', async () => {
+    await p.evaluate(() => { S.settings.scheme = 'tiivis'; save(); render(); });
+    await p.locator('[data-start="sm"]').click(); await p.waitForTimeout(300);
+    const t = await p.locator('.ex').first().textContent(); if(!/Kaikki sarjat:/.test(t)) throw new Error(t.slice(0, 200));
+    if(await p.locator('.ex').first().locator('.setrow.amrap').count() !== 2) throw new Error('MAX-rivit');
+    await p.locator('[data-cancel]').click(); await p.waitForTimeout(150); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(200); });
+  await T('Asetuksissa valinta, ramp- ja MAX-kytkimet piiloon mallin ollessa paalla', async () => {
+    await p.locator('[data-tab="data"]').click(); await p.waitForTimeout(300);
+    await p.locator('[data-scheme="perus"][data-skind="set"]').click(); await p.waitForTimeout(250);
+    const r = await p.evaluate(() => [S.settings.scheme, !!document.querySelector('[data-tog="addSets"]'), document.querySelector('.scheme.on b').textContent]);
+    if(r[0] !== 'perus' || r[1] || r[2] !== 'Perus') throw new Error(JSON.stringify(r));
+    await p.locator('[data-scheme=""][data-skind="set"]').click(); await p.waitForTimeout(250);
+    const r2 = await p.evaluate(() => [S.settings.scheme, !!document.querySelector('[data-tog="addSets"]')]);
+    if(r2[0] !== null || !r2[1]) throw new Error(JSON.stringify(r2)); });
+  await T('jakson alussa kysely kerran; valinta kuittaa sen', async () => {
+    await p.evaluate(() => { S.settings.scheme = null; S.settings.schemeFor = null; S.settings.cycleStart = new Date(Date.now() - 6.2*7*864e5).toISOString();
+      S.sessions = [{id:'q', programId:'sm', name:'S', mode:'auto', date:new Date(Date.now() - 864e5).toISOString(), startedAt:0, finishedAt:1, ex:[]}];
+      save(); route.tab = 'treeni'; render(); });
+    let t = await p.textContent('#view'); if(!/Uusi jakso 2 alkaa/.test(t)) throw new Error(t.slice(0, 200));
+    await p.locator('[data-scheme="tiivis"][data-skind="pick"]').click(); await p.waitForTimeout(250);
+    const r = await p.evaluate(() => [S.settings.scheme, S.settings.schemeFor].join());
+    t = await p.textContent('#view');
+    if(r !== 'tiivis,1' || /Uusi jakso 2 alkaa/.test(t) || !/jakso 2 · tiivis/.test(t)) throw new Error(r + ' ' + t.slice(0, 160)); });
+  await T('ei kyselya ennen ensimmaista automaattitreenia', async () => {
+    const r = await p.evaluate(() => { S.sessions = []; S.settings.schemeFor = null; save(); render(); return /Uusi jakso/.test(document.getElementById('view').textContent); });
+    if(r) throw new Error('kysyttiin liian aikaisin');
+    await p.evaluate(() => { S.settings = defaultSettings(); save(); render(); }); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

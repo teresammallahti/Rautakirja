@@ -207,6 +207,13 @@ label.f > span{display:block;margin-bottom:4px}
   display:flex;flex-direction:column;gap:9px;
   background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:10px 11px;
 }
+.schemes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scheme{display:flex;flex-direction:column;gap:3px;text-align:left;padding:10px 11px;border-radius:10px;
+  background:var(--surface2);border:1.5px solid var(--line);color:var(--text);min-height:62px}
+.scheme b{font-family:Oswald,sans-serif;font-weight:500;letter-spacing:.05em;text-transform:uppercase;font-size:14.5px}
+.scheme span{font-size:12.5px;color:var(--dim);line-height:1.3}
+.scheme.on{border-color:var(--accent);background:var(--accent-soft)}
+.scheme.on b{color:var(--accent)}
 .infobox{
   margin:11px 0 0;background:var(--surface2);border-left:3px solid var(--accent);
   border-radius:0 8px 8px 0;padding:9px 12px 10px;

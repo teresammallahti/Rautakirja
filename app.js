@@ -148,9 +148,29 @@ function defaultSettings(){
     amrap: true,            /* viimeinen sarja maksimiin (tekniseen asti) */
     deloadWeeks: 6,         /* 0 = ei kevennysviikkoja */
     cycleStart: null,       /* jakson alku; asetetaan kun automaattitila otetaan käyttöön */
-    skipDeload: null        /* ohitetun kevennysviikon jakson numero */
+    skipDeload: null,       /* ohitetun kevennysviikon jakson numero */
+    scheme: null,           /* sarjamalli: null = ohjelman mukaan, "tiivis" | "perus" | "laaja" */
+    schemeFor: null         /* jakso jolle sarjamalli on valittu (kysytään jakson alussa) */
   };
 }
+
+/* Sarjamallit automaattitilaan. Valitaan Asetuksissa tai jakson alussa.
+   - TIIVIS: 2 sarjaa, molemmat tekniseen maksimiin. Ajansäästömalli.
+     Treenatuilla 1 sarja/liike lähellä uupumusta, 2–3 krt/vk, riittää
+     voiman kasvuun (Androulakis-Korakakis ym. 2020), mutta lihaskasvu
+     jää pienemmäksi kuin suuremmalla volyymilla — siksi jaksokohtainen.
+     Uupumukseen asti ei ole välttämätöntä, mutta kun sarjoja on vähän,
+     lähellä uupumusta tehty sarja korvaa määrää (Refalo ym. 2023).
+   - PERUS: 3 sarjaa, viimeinen maksimiin.
+   - LAAJA: 4 sarjaa, viimeinen maksimiin.
+   Liikkeen noAmrap (maastavedot) ohittaa mallin: niissä ei koskaan
+   tehdä maksimisarjoja. Kevennysviikolla sarjat puoleen, ei maksimeja. */
+const SCHEMES = {
+  tiivis: {sets: 2, all: true,  name: "Tiivis", desc: "2 sarjaa, molemmat maksimiin"},
+  perus:  {sets: 3, all: false, name: "Perus",  desc: "3 sarjaa, viimeinen maksimiin"},
+  laaja:  {sets: 4, all: false, name: "Laaja",  desc: "4 sarjaa, viimeinen maksimiin"}
+};
+const schemeOf = () => (S.settings && SCHEMES[S.settings.scheme]) || null;
 
 function seedPrograms(){
   return [
@@ -416,7 +436,7 @@ function cycleInfo(){
     week: wk, len: L, idx: idx,
     deload: isDeloadWeek && !skipped,
     skipped: skipped,
-    ramp: !!st.addSets && wk > Math.floor(L / 2) && wk < L
+    ramp: !!st.addSets && !SCHEMES[st.scheme] && wk > Math.floor(L / 2) && wk < L
   };
 }
 
@@ -446,7 +466,8 @@ function autoPlan(def){
   const st = S.settings;
   const [rmin, rmax] = autoRange(def);
   const cyc = cycleInfo();
-  const base = def.sets || st.sets || 3;
+  const sch = schemeOf();
+  const base = sch ? sch.sets : (def.sets || st.sets || 3);
   let sets = cyc && cyc.ramp ? Math.min(Math.max(st.maxSets || base, base), base + 1) : base;
   const h = exHistory(def.name);
   let w, reps, reason, up = false, down = false;
@@ -504,7 +525,8 @@ function autoPlan(def){
   return {
     w: w, rmin: rmin, rmax: rmax, sets: sets, reps: reps,
     up: up, down: down, reason: reason, deload: deload,
-    amrap: !!st.amrap && !def.noAmrap && !deload
+    amrap: (sch ? true : !!st.amrap) && !def.noAmrap && !deload,
+    amrapAll: !!(sch && sch.all) && !def.noAmrap && !deload
   };
 }
 
@@ -515,8 +537,8 @@ function autoEntry(def){
     id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit,
     step: def.step || STEPS[def.equip] || 2.5,
     rmin: pl.rmin, rmax: pl.rmax, target: pl.sets,
-    up: pl.up, down: pl.down, reason: pl.reason, amrap: pl.amrap, skip: false,
-    sets: pl.reps.map((r, i) => ({w: pl.w, r: r, ok: false, a: pl.amrap && i === pl.reps.length - 1}))
+    up: pl.up, down: pl.down, reason: pl.reason, amrap: pl.amrap, amrapAll: pl.amrapAll, skip: false,
+    sets: pl.reps.map((r, i) => ({w: pl.w, r: r, ok: false, a: pl.amrapAll || (pl.amrap && i === pl.reps.length - 1)}))
   };
 }
 
@@ -540,7 +562,7 @@ function makeEntry(def){
 
 /* AMRAP-merkki kuuluu aina viimeiselle sarjalle, myös sarjoja lisättäessä. */
 function reAmrap(x){
-  x.sets.forEach((t, i) => { t.a = !!x.amrap && i === x.sets.length - 1; });
+  x.sets.forEach((t, i) => { t.a = !!x.amrapAll || (!!x.amrap && i === x.sets.length - 1); });
 }
 
 /* ============ Google Drive -varmuuskopiointi ============
@@ -1292,6 +1314,19 @@ function viewHome(v){
   }
 
   const cyc = cycleInfo();
+  /* Jakson alussa kysytään sarjamalli kerran. Ei kysytä ennen kuin
+     automaattitilassa on jo treenattu, eikä kesken treenin. */
+  if(cyc && cyc.len && cyc.week === 1 && !S.active && S.settings.schemeFor !== cyc.idx &&
+     S.sessions.some(s => s.mode === "auto")){
+    const cur = S.settings.scheme || "";
+    wrap.appendChild(el(
+      '<div class="card pad" style="border-left:3px solid var(--accent)">'+
+        '<div class="eyebrow">Uusi jakso '+(cyc.idx+1)+' alkaa</div>'+
+        '<p style="margin:6px 0 10px">Paljonko aikaa on tämän jakson treeneihin? Valinta pätee '+cyc.len+' viikkoa.</p>'+
+        schemeButtons(cur, "pick")+
+      '</div>'));
+  }
+
   if(cyc && cyc.len){
     if(cyc.deload){
       wrap.appendChild(el(
@@ -1304,7 +1339,7 @@ function viewHome(v){
       wrap.appendChild(el(
         '<div class="card pad" style="padding-top:11px;padding-bottom:11px">'+
           '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'+
-            '<span class="eyebrow">Automaattinen · jakso '+(cyc.idx+1)+'</span>'+
+            '<span class="eyebrow">Automaattinen · jakso '+(cyc.idx+1)+(schemeOf() ? ' · '+schemeOf().name.toLowerCase() : '')+'</span>'+
             '<span class="num" style="font-size:13.5px">viikko '+cyc.week+'/'+cyc.len+'</span>'+
           '</div>'+
           (cyc.ramp ? '<div style="font-size:13px;color:var(--dim);margin-top:5px">Sarjamäärä nostettu tälle viikolle.</div>' : '')+
@@ -1460,7 +1495,7 @@ function viewWorkout(v){
           (L ? '<span style="width:100%;font-size:12.5px">Viimeksi: <span class="num">'+
                 L.ex.sets.filter(t=>t.ok).map(t=>fmt(t.r)).join(" · ")+repUnit(x)+' × '+
                 fmt(L.ex.sets.filter(t=>t.ok).slice(-1)[0].w)+' kg</span></span>' : '')+
-          (x.amrap ? '<span style="width:100%;font-size:12.5px"><b>Viimeinen sarja:</b> '+
+          (x.amrap ? '<span style="width:100%;font-size:12.5px"><b>'+(x.amrapAll ? 'Kaikki sarjat:' : 'Viimeinen sarja:')+'</b> '+
             (isTime(x) ? 'niin pitkään kuin ote ja tekniikka kestävät.' : 'niin monta kuin tekniikka kestää.')+'</span>' : '')+
         '</div>'));
       } else if(L){
@@ -1807,6 +1842,19 @@ function viewPrograms(v){
 
 /* Lyhyt selitys valitusta harjoitusmallista Asetukset-välilehdelle.
    Teksti seuraa asetuksia, jotta se ei lupaa mitään mitä moottori ei tee. */
+/* Sarjamallin valintanapit. kind "set" = Asetukset, "pick" = jakson alun kysely. */
+function schemeButtons(cur, kind){
+  const opt = (k, title, desc) =>
+    '<button class="scheme'+(cur === k ? ' on' : '')+'" data-scheme="'+k+'" data-skind="'+kind+'">'+
+      '<b>'+title+'</b><span>'+desc+'</span></button>';
+  return '<div class="schemes">'+
+    opt("tiivis", "Tiivis", "2 sarjaa, molemmat maksimiin")+
+    opt("perus", "Perus", "3 sarjaa, viimeinen maksimiin")+
+    opt("laaja", "Laaja", "4 sarjaa, viimeinen maksimiin")+
+    opt("", "Ohjelman mukaan", "liikkeen oma sarjamäärä")+
+  '</div>';
+}
+
 function modeInfo(st, auto){
   const li = t => '<li>'+t+'</li>';
   let rows;
@@ -1825,8 +1873,9 @@ function modeInfo(st, auto){
       'Paino nousee, kun kaikki sarjat yltävät yläpäähän '+
         (st.twoSession ? 'kahdella peräkkäisellä kerralla.' : '.')+
         ' Sen jälkeen toistot laskevat ja alkavat taas nousta.',
-      st.amrap ? 'Viimeinen sarja tehdään maksimiin (<b>MAX</b>). Jos toistoja tulee 3 yli ylärajan, paino nousee heti.' : '',
-      L ? L+' viikon jaksossa '+(st.addSets ? 'loppupuolelle tulee yksi sarja lisää ja ' : '')+
+      SCHEMES[st.scheme] ? 'Sarjamalli <b>'+SCHEMES[st.scheme].name.toLowerCase()+'</b>: '+SCHEMES[st.scheme].desc+' (<b>MAX</b>). Jos maksimisarjassa tulee 3 toistoa yli ylärajan, paino nousee heti.'
+        : st.amrap ? 'Viimeinen sarja tehdään maksimiin (<b>MAX</b>). Jos toistoja tulee 3 yli ylärajan, paino nousee heti.' : '',
+      L ? L+' viikon jaksossa '+(st.addSets && !SCHEMES[st.scheme] ? 'loppupuolelle tulee yksi sarja lisää ja ' : '')+
           'viimeinen viikko on kevennys (puolet sarjoista, sama paino).' : '',
       'Jos jäät kahdesti peräkkäin haarukan alle, paino laskee askeleen.',
       '<b>Sopii, kun</b> haluat, että appi päättää painot ja sarjat puolestasi.'
@@ -1859,10 +1908,14 @@ function viewData(v){
         '</div>'+
         '<div class="kv"><span>Kahden kerran sääntö</span>'+
           '<button class="pill '+(st.twoSession?'good':'')+'" data-tog="twoSession">'+(st.twoSession?'Päällä':'Pois')+'</button></div>'+
+        '<div class="eyebrow" style="margin:14px 0 7px">Sarjamalli</div>'+
+        schemeButtons(st.scheme || "", "set")+
+        '<p style="font-size:12.5px;color:var(--dim);margin:7px 0 0">Valinta pätee kaikkiin liikkeisiin. Appi kysyy sen myös jokaisen jakson alussa.</p>'+
+        (SCHEMES[st.scheme] ? '' :
         '<div class="kv"><span>Sarjamäärä kasvaa '+st.sets+' → '+st.maxSets+'</span>'+
           '<button class="pill '+(st.addSets?'good':'')+'" data-tog="addSets">'+(st.addSets?'Päällä':'Pois')+'</button></div>'+
         '<div class="kv"><span>Viimeinen sarja maksimiin</span>'+
-          '<button class="pill '+(st.amrap?'good':'')+'" data-tog="amrap">'+(st.amrap?'Päällä':'Pois')+'</button></div>'+
+          '<button class="pill '+(st.amrap?'good':'')+'" data-tog="amrap">'+(st.amrap?'Päällä':'Pois')+'</button></div>')+
         '<div class="kv"><span>Jakson pituus</span>'+
           '<select data-dw="1" style="width:auto;padding:6px 8px">'+
             [0,4,5,6,8].map(n => '<option value="'+n+'"'+(n===st.deloadWeeks?' selected':'')+'>'+
@@ -2388,9 +2441,16 @@ document.addEventListener("click", async e => {
     }
     save(); render(); return;
   }
+  if(d.scheme!==undefined){
+    S.settings.scheme = d.scheme || null;
+    const c = cycleInfo(); if(c) S.settings.schemeFor = c.idx;
+    save(); render();
+    toast(d.scheme ? "Sarjamalli: " + SCHEMES[d.scheme].desc + "." : "Sarjamäärä ohjelman mukaan.");
+    return;
+  }
   if(d.newcycle){
     if(!await ask("Aloitetaanko uusi jakso tästä päivästä? Viikkolaskuri nollautuu.","Aloita")) return;
-    S.settings.cycleStart = new Date().toISOString(); S.settings.skipDeload = null;
+    S.settings.cycleStart = new Date().toISOString(); S.settings.skipDeload = null; S.settings.schemeFor = null;
     save(); render(); toast("Uusi jakso aloitettu."); return;
   }
   if(d.skipdeload){

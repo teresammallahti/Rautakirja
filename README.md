@@ -75,6 +75,12 @@ toimii). Aja kun moottorin tai indeksien logiikkaa muutetaan.
 Ohjelmat-välilehden ↑ ↓ -napit muuttavat ohjelmien järjestystä; sama järjestys näkyy kotinäkymässä.
 Ylimmän ↑ ja alimman ↓ kiertävät toiseen päähän.
 
+## Sarjamallit
+
+Automaattitilassa valitaan sarjamalli (`SCHEMES`): tiivis (2 sarjaa, molemmat maksimiin), perus
+(3, viimeinen maksimiin), laaja (4, viimeinen maksimiin) tai ohjelman mukaan. Valinta Asetuksissa;
+appi kysyy sen myös jokaisen jakson alussa. Maastavedoissa (`noAmrap`) ei koskaan maksimisarjoja.
+
 ## Rotaatio
 
 Ohjelmalla on kenttä `rot`. Rotaatiossa olevat vuorottelevat ja kotinäkymä merkitsee seuraavan

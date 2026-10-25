@@ -169,6 +169,15 @@ window.sim = function(opts){
   T('4 vk jakso, 3 treeniä/vk: kevennys viikoilla 4 ja 8', r.log.filter(s => s.deload).every(s => s.wk === 3 || s.wk === 7) && r.log.filter(s => s.deload).length === 6);
   T('maxSets 5 nostaa silti vain yhdellä (4 sarjaa)', r.log.filter(s => s.wk === 2).every(s => s.ex.filter(x => x.n !== 'Tangosta riippuminen').every(x => x.sets === 4)));
 
+  group('E2. Sarjamallit');
+  for(const sch of ['tiivis','perus','laaja']){
+    r = await p.evaluate(o => sim(o), {weeks:12, perWeek:2, prog:PROG, lifter:{cap:CAP, growth:1.2}, settings:{scheme:sch}});
+    const w = weightsOf(r, 'Penkkipunnerrus tangolla');
+    const n = {tiivis:2, perus:3, laaja:4}[sch];
+    T(sch + ': ei NaN, askel pysyy, penkki nousee (' + w[0] + ' → ' + w[w.length-1] + ')', allFinite(r) && stepOk(r, 'Penkkipunnerrus tangolla', 2.5) === 0 && w[w.length-1] > w[0]);
+    T(sch + ': työsarjoja ' + n + ', kevennyksessä ' + Math.ceil(n/2), r.log.every(s => s.ex.every(x => x.sets === (s.deload ? Math.ceil(n/2) : n))));
+  }
+
   group('F. Staattinen tila');
   r = await p.evaluate(o => sim(o), {weeks:8, perWeek:2, mode:'staattinen', prog:PROG, lifter:{cap:CAP, growth:1.5}});
   T('ei NaN/Infinity', allFinite(r));
