@@ -267,7 +267,7 @@ const group = n => console.log('\n--- ' + n + ' ---');
     await p.evaluate(() => { S.programs[1].ex.push({id:'xh', name:'Tangosta riippuminen', equip:'kehonpaino', step:1, sets:3, rmin:8, rmax:8, w:0}); S.v = 7; save(); });
     await p.reload({waitUntil:'load'}); await p.waitForTimeout(400);
     const r = await p.evaluate(() => { const x = S.programs[1].ex.find(e => e.id === 'xh'); return [S.v, x.unit, x.step, x.rmin, x.rmax]; });
-    if(r.join() !== '9,s,2.5,30,45') throw new Error(r.join()); });
+    if(r.join() !== '10,s,2.5,30,45') throw new Error(r.join()); });
   await p.evaluate(() => { const it = LIB[0].items.find(i => i.n === 'Kuntopyörä'); const w = defFromLib(it); w.id = 'xw';
     S.programs[1].ex.unshift(w); save(); });
   await p.reload({waitUntil:'load'}); await p.waitForTimeout(400);
@@ -556,7 +556,7 @@ const group = n => console.log('\n--- ' + n + ' ---');
       return [S.v, !!S.settings, S.settings.mode, x[0].unit, x[0].step, x[0].rmin, x[1].w, x[1].step, x[1].sets, S.sessions.length, S.sessions[0].ex[0].sets[0].w];
     });
     /* v3-migraatio pakottaa 3×8, v5 napsauttaa käsipainon 17→15, v8 riippuminen sekunneiksi; historiaan ei kosketa */
-    if(JSON.stringify(r) !== JSON.stringify([9, true, 'staattinen', 's', 2.5, 30, 15, 1, 3, 1, 17])) throw new Error(JSON.stringify(r)); });
+    if(JSON.stringify(r) !== JSON.stringify([10, true, 'staattinen', 's', 2.5, 30, 15, 1, 3, 1, 17])) throw new Error(JSON.stringify(r)); });
   await T('tuonnin jalkeen appi toimii: treeni kaynnistyy ja riippuminen on sekunteina', async () => {
     await p.evaluate(() => { route.tab = 'treeni'; render(); });
     await p.locator('[data-start="p1"]').click(); await p.waitForTimeout(300);
@@ -725,6 +725,64 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(r !== '98.4,false') throw new Error(r);
     await p.locator('input[data-bw]').fill('5'); await p.locator('input[data-bw]').dispatchEvent('change'); await p.waitForTimeout(250);
     r = await p.evaluate(() => String(S.settings.bw)); if(r !== 'null') throw new Error(r);
+    await p.evaluate(() => { S.settings = defaultSettings(); S.sessions = []; save(); }); });
+
+  group('Avustettu leuanvetolaite');
+  await p.evaluate(() => { S.settings = Object.assign(defaultSettings(), {bw:98}); S.active = null; S.sessions = [];
+    S.programs = [{id:'av', name:'A', est:'', rot:true, ex:[defFromLib(LIB.flatMap(g => g.items).find(i => i.n === 'Avustettu leuanveto laitteessa'))]}];
+    save(); });
+  await T('liikepankissa avustettu leuanveto ja dippi, oletus kevennys 30 kg askel 5', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex[0]; const d = LIB.flatMap(g => g.items).find(i => i.n === 'Avustettu dippi laitteessa');
+      return [x.assist, x.w, x.step, x.equip, !!d && !!d.assist].join(); });
+    if(r !== 'true,30,5,laite,true') throw new Error(r); });
+  await T('kuorma = kehonpaino − kevennys; ilman kehonpainoa 0', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex[0]; const a = loadOf(x, {w:30}); S.settings.bw = null; const b = loadOf(x, {w:30}); S.settings.bw = 98; return [a, b].join(); });
+    if(r !== '68,0') throw new Error(r); });
+  await T('staattinen: tavoite tayteen -> kevennys 30 -> 25; vaje -> pysyy', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex[0];
+      S.sessions = [{id:'a1', programId:'av', name:'A', date:new Date(Date.now()-864e5).toISOString(), startedAt:0, finishedAt:1,
+        ex:[{name:x.name, equip:'laite', assist:true, rmax:8, target:3, sets:[1,2,3].map(() => ({w:30, r:8, ok:true}))}]}];
+      const a = suggest(x).w;
+      S.sessions[0].ex[0].sets[2].r = 6; const b = suggest(x).w;
+      return [a, b].join(); });
+    if(r !== '25,30') throw new Error(r); });
+  await T('automaatti: kahdesti ylarajalla -> kevennys pienenee; kahdesti alle -> kasvaa; sanat oikein', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex[0]; S.settings.mode = 'automaattinen'; S.settings.cycleStart = new Date().toISOString();
+      const mk = (d, r) => ({id:'q'+d, programId:'av', name:'A', mode:'auto', date:new Date(Date.now()-d*864e5).toISOString(), startedAt:0, finishedAt:1,
+        ex:[{name:x.name, equip:'laite', assist:true, rmin:6, rmax:10, target:3, sets:[1,2,3].map(() => ({w:30, r:r, ok:true}))}]});
+      S.sessions = [mk(6, 10), mk(3, 10)]; const up = autoPlan(x);
+      S.sessions = [mk(6, 4), mk(3, 4)]; const dn = autoPlan(x);
+      S.sessions = [mk(6, 7), mk(3, 7)]; const same = autoPlan(x);
+      S.settings.mode = 'staattinen';
+      return [up.w, up.up, /kevennys pienenee/.test(up.reason), dn.w, dn.down, /kevennys kasvaa/.test(dn.reason), same.w, /Sama kevennys/.test(same.reason)].join(); });
+    if(r !== '25,true,true,35,true,true,30,true') throw new Error(r); });
+  await T('kevennys 0 ja yläraja tayteen -> kehotus siirtya ilman laitetta', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex[0]; S.settings.mode = 'automaattinen';
+      const mk = d => ({id:'z'+d, programId:'av', name:'A', mode:'auto', date:new Date(Date.now()-d*864e5).toISOString(), startedAt:0, finishedAt:1,
+        ex:[{name:x.name, equip:'laite', assist:true, rmin:6, rmax:10, target:3, sets:[1,2,3].map(() => ({w:0, r:10, ok:true}))}]});
+      S.sessions = [mk(6), mk(3)]; const pl = autoPlan(x); S.settings.mode = 'staattinen'; return [pl.w, pl.up, /ilman laitetta/.test(pl.reason)].join(); });
+    if(r !== '0,false,true') throw new Error(r); });
+  await T('tyomaara ja indeksi kayttavat kehonpaino − kevennys; ei kiloennatyksia', async () => {
+    const r = await p.evaluate(() => { const x = S.programs[0].ex[0];
+      S.sessions = [{id:'v1', programId:'av', name:'A', date:new Date().toISOString(), startedAt:0, finishedAt:1,
+        ex:[{name:x.name, equip:'laite', assist:true, rmax:8, target:2, sets:[{w:30, r:8, ok:true}, {w:20, r:6, ok:true}]}]}];
+      const s = S.sessions[0]; return [volume(s), Math.round(bestE1(s.ex[0])), workSetWeight(s.ex[0]), fmtSet(s.ex[0], s.ex[0].sets[0])].join('|'); });
+    /* 68*8 + 78*6 = 544+468 = 1012; e1RM max(68*1.267, 78*1.2) = 94 */
+    if(r !== '1012|94|0|kevennys 30 kg × 8') throw new Error(r); });
+  await T('treenissa kentta "Kevennys kg" ja merkki "Vähennä kevennystä"', async () => {
+    await p.evaluate(() => { const x = S.programs[0].ex[0];
+      S.sessions = [{id:'w1', programId:'av', name:'A', date:new Date(Date.now()-864e5).toISOString(), startedAt:0, finishedAt:1,
+        ex:[{name:x.name, equip:'laite', assist:true, rmax:8, target:3, sets:[1,2,3].map(() => ({w:30, r:8, ok:true}))}]}]; save(); route.tab = 'treeni'; render(); });
+    await p.locator('[data-start="av"]').click(); await p.waitForTimeout(300);
+    const t = await p.locator('.ex').first().textContent();
+    if(!/Kevennys kg/.test(t) || !/Vähennä kevennystä/.test(t)) throw new Error(t.slice(0, 200));
+    const w = await p.evaluate(() => S.active.ex[0].sets[0].w); if(w !== 25) throw new Error('w=' + w);
+    await p.locator('[data-cancel]').click(); await p.waitForTimeout(150); await p.locator('[data-ans="1"]').click(); await p.waitForTimeout(200); });
+  await T('migraatio v10 merkitsee vanhat avustetut liikkeet', async () => {
+    const r = await p.evaluate(() => { S.programs[0].ex.push({id:'old', name:'Avustettu leuanveto laitteessa', equip:'laite', step:5, sets:3, rmin:8, rmax:8, w:40});
+      S.sessions.push({id:'o1', programId:'av', name:'A', date:new Date().toISOString(), startedAt:0, finishedAt:1, ex:[{name:'Avustettu leuanveto laitteessa', equip:'laite', rmax:8, target:1, sets:[{w:40, r:8, ok:true}]}]});
+      S.v = 9; migrate(); return [S.v, S.programs[0].ex[1].assist, S.sessions[S.sessions.length-1].ex[0].assist].join(); });
+    if(r !== '10,true,true') throw new Error(r);
     await p.evaluate(() => { S.settings = defaultSettings(); S.sessions = []; save(); }); });
 
   group('Lopuksi');

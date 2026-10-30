@@ -80,6 +80,8 @@ Ylimmän ↑ ja alimman ↓ kiertävät toiseen päähän.
 Asetuksissa annettu kehonpaino lasketaan kehonpainoliikkeiden kuormaksi työmäärään ja
 voimaindeksiin (`loadOf`, osuudet `BW_FRAC`: leuanveto, dippi ja riipunta 100 %, punnerrus 65 %,
 vaakasoutu 55 %, selän ja lantion ojennukset 50 %, keskivartaloliikkeet toistaiseksi 0) lisäpainon päälle. Ilman kehonpainoa lasketaan vain lisäpaino.
+Avustetuissa laitteissa (`assist`, esim. avustettu leuanveto) kirjataan kevennys kiloina; kuorma on
+kehonpaino − kevennys, ja progressio pienentää kevennystä 5 kg askelin. Kiloennätyksiä niistä ei lasketa.
 
 ## Sarjamallit
 

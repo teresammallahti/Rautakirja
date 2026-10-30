@@ -44,11 +44,11 @@ const LIB = [
     {n:"Nousevat lämmittelysarjat",e:"lämmittely",warm:1,min:5,list:["Ensimmäiseen isoon liikkeeseen","Tyhjä tanko × 10","Noin 40 % työpainosta × 5","Noin 60 % × 5","Noin 80 % × 3","Ei uuvuteta — lyhyt tauko ja työsarjoihin"]}
   ]},
   {g:"Rinta", items:[{n:"Penkkipunnerrus tangolla",e:"tanko",sf:"penkki"}, {n:"Vinopenkkipunnerrus tangolla",e:"tanko",sf:"penkki"}, {n:"Penkkipunnerrus käsipainoilla",e:"käsipaino",sf:"kp"}, {n:"Vinopenkkipunnerrus käsipainoilla",e:"käsipaino",sf:"kp"}, {n:"Vipunosto penkillä käsipainoilla",e:"käsipaino"}, {n:"Ristikkäistalja ylhäältä",e:"talja"}, {n:"Ristikkäistalja keskeltä",e:"talja"}, {n:"Ristikkäistalja alhaalta",e:"talja"}, {n:"Punnerrus",e:"kehonpaino"}, {n:"Alaviistopenkkipunnerrus tangolla",e:"tanko",sf:"penkki"}, {n:"Rintaprässi laitteessa",e:"laite"}, {n:"Perhoslaite (pec deck)",e:"laite"}, {n:"Dippi rinnalle, eteen nojaten",e:"kehonpaino"}, {n:"Penkkipunnerrus Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Vinopenkkipunnerrus Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Alaviistopenkkipunnerrus Smith-laitteessa",e:"smith",sf:"smith"}]},
-  {g:"Selkä — leveys (vetoliikkeet ylhäältä)", items:[{n:"Ylätalja myötäotteella",e:"talja"}, {n:"Pullover taljassa suoralla kahvalla",e:"talja"}, {n:"Ylätalja vastaotteella",e:"talja"}, {n:"Ylätalja kapealla kolmiokahvalla",e:"talja"}, {n:"Ylätalja yhdellä kädellä",e:"talja"}, {n:"Leuanveto myötäotteella",e:"kehonpaino"}, {n:"Leuanveto vastaotteella",e:"kehonpaino"}, {n:"Vetoliike laitteessa",e:"laite"}, {n:"Avustettu leuanveto laitteessa",e:"laite"}, {n:"Suorin käsin alasveto taljassa",e:"talja"}]},
+  {g:"Selkä — leveys (vetoliikkeet ylhäältä)", items:[{n:"Ylätalja myötäotteella",e:"talja"}, {n:"Pullover taljassa suoralla kahvalla",e:"talja"}, {n:"Ylätalja vastaotteella",e:"talja"}, {n:"Ylätalja kapealla kolmiokahvalla",e:"talja"}, {n:"Ylätalja yhdellä kädellä",e:"talja"}, {n:"Leuanveto myötäotteella",e:"kehonpaino"}, {n:"Leuanveto vastaotteella",e:"kehonpaino"}, {n:"Vetoliike laitteessa",e:"laite"}, {n:"Avustettu leuanveto laitteessa",e:"laite",assist:1}, {n:"Suorin käsin alasveto taljassa",e:"talja"}]},
   {g:"Selkä — paksuus (soutuliikkeet)", items:[{n:"Kulmasoutu tangolla",e:"tanko"}, {n:"Käsipainosoutu yhdellä kädellä",e:"käsipaino"}, {n:"Alatalja soutu, kolmiokahva",e:"talja"}, {n:"Alatalja soutu, leveä kahva",e:"talja"}, {n:"T-tankosoutu",e:"tanko"}, {n:"Soutu laitteessa rintatuella",e:"laite"}, {n:"Ylävartalon ojennus / selänojennus",e:"kehonpaino"}, {n:"Pendlay-soutu",e:"tanko"}, {n:"Rintatukisoutu käsipainoilla vinopenkillä",e:"käsipaino"}, {n:"Alatalja soutu yhdellä kädellä",e:"talja"}, {n:"Kehonpainosoutu tangon alla",e:"kehonpaino"}, {n:"Kulmasoutu Smith-laitteessa",e:"smith"}, {n:"Kehonpainosoutu Smith-tangon alla",e:"kehonpaino"}]},
   {g:"Hartiat", items:[{n:"Pystypunnerrus tangolla",e:"tanko",sf:"pysty"}, {n:"Pystypunnerrus käsipainoilla",e:"käsipaino"}, {n:"Olkapääpunnerrus laitteessa",e:"laite"}, {n:"Sivuvipunosto käsipainoilla",e:"käsipaino"}, {n:"Sivuvipunosto taljassa yhdellä kädellä",e:"talja"}, {n:"Takaolkapään vipunosto kumarassa",e:"käsipaino"}, {n:"Face pull taljassa",e:"talja"}, {n:"Etuvipunosto",e:"käsipaino"}, {n:"Arnold-punnerrus",e:"käsipaino"}, {n:"Sivuvipunosto laitteessa",e:"laite"}, {n:"Takaolkapää laitteessa (reverse pec deck)",e:"laite"}, {n:"Pystysoutu taljassa",e:"talja"}, {n:"Olankohautus käsipainoilla",e:"käsipaino"}, {n:"Olankohautus tangolla",e:"tanko"}, {n:"Pystypunnerrus Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Pystysoutu Smith-laitteessa",e:"smith"}, {n:"Olankohautus Smith-laitteessa",e:"smith"}]},
   {g:"Hauis", items:[{n:"Hauiskääntö vinotangolla",e:"tanko"}, {n:"Bayesian curl",e:"talja"}, {n:"Hauiskääntö käsipainoilla",e:"käsipaino"}, {n:"Hauiskääntö vuorotellen kiertäen",e:"käsipaino"}, {n:"Vasarakääntö",e:"käsipaino"}, {n:"Hauiskääntö vinopenkissä",e:"käsipaino"}, {n:"Hauiskääntö taljassa suoralla kahvalla",e:"talja"}, {n:"Scott-penkki tangolla (preacher curl)",e:"tanko"}, {n:"Hauiskääntö laitteessa",e:"laite"}, {n:"Keskittynyt hauiskääntö",e:"käsipaino"}]},
-  {g:"Ojentaja", items:[{n:"Ojentaja niskan takaa taljassa, suora kahva",e:"talja"}, {n:"Ojentajapunnerrus taljassa köydellä",e:"talja"}, {n:"Ojentajapunnerrus taljassa suoralla kahvalla",e:"talja"}, {n:"Ranskalainen punnerrus tangolla",e:"tanko",sf:"ranska"}, {n:"Ranskalainen punnerrus käsipainoilla",e:"käsipaino"}, {n:"Kapea penkkipunnerrus",e:"tanko",sf:"penkki"}, {n:"Dippi ojentajalle, pysty vartalo",e:"kehonpaino"}, {n:"Ojentajapunnerrus taljassa yhdellä kädellä",e:"talja"}, {n:"Ojentajan ojennus käsipainolla kumarassa (kickback)",e:"käsipaino"}, {n:"Dippilaite",e:"laite"}, {n:"Kapea penkkipunnerrus Smith-laitteessa",e:"smith",sf:"smith"}]},
+  {g:"Ojentaja", items:[{n:"Ojentaja niskan takaa taljassa, suora kahva",e:"talja"}, {n:"Ojentajapunnerrus taljassa köydellä",e:"talja"}, {n:"Ojentajapunnerrus taljassa suoralla kahvalla",e:"talja"}, {n:"Ranskalainen punnerrus tangolla",e:"tanko",sf:"ranska"}, {n:"Ranskalainen punnerrus käsipainoilla",e:"käsipaino"}, {n:"Kapea penkkipunnerrus",e:"tanko",sf:"penkki"}, {n:"Dippi ojentajalle, pysty vartalo",e:"kehonpaino"}, {n:"Ojentajapunnerrus taljassa yhdellä kädellä",e:"talja"}, {n:"Ojentajan ojennus käsipainolla kumarassa (kickback)",e:"käsipaino"}, {n:"Dippilaite",e:"laite"}, {n:"Avustettu dippi laitteessa",e:"laite",assist:1}, {n:"Kapea penkkipunnerrus Smith-laitteessa",e:"smith",sf:"smith"}]},
   {g:"Etureisi", items:[{n:"Polven ojennus",e:"laite"}, {n:"Askelkyykkykävely",e:"käsipaino"}, {n:"Jalkaprässi",e:"laite",sf:"laite"}, {n:"Bulgarialainen askelkyykky",e:"käsipaino"}, {n:"Askelkyykky paikallaan",e:"käsipaino"}, {n:"Astuminen korokkeelle",e:"käsipaino"}, {n:"Goblet-kyykky",e:"käsipaino"}, {n:"Takakyykky",e:"tanko",sf:"kyykky"}, {n:"Etukyykky",e:"tanko",sf:"etukyykky"}, {n:"Kyykky turvatangolla (safety squat bar)",e:"tanko",sf:"kyykky"}, {n:"Hack-kyykky laitteessa",e:"laite",sf:"laite"}, {n:"Smith-kyykky",e:"smith",sf:"smith"}, {n:"Bulgarialainen askelkyykky Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Askelkyykky Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Etukyykky Smith-laitteessa",e:"smith",sf:"smith"}, {n:"Pendulum-kyykky laitteessa",e:"laite",sf:"laite"}]},
   {g:"Takareisi", items:[{n:"Romanialainen maastaveto",e:"tanko",sf:"veto"}, {n:"Polven koukistus istuen",e:"laite"}, {n:"Polven koukistus maaten",e:"laite"}, {n:"Maastaveto",e:"tanko",sf:"veto"}, {n:"Romanialainen maastaveto käsipainoilla",e:"käsipaino"}, {n:"Nordic-takareisi",e:"kehonpaino"}, {n:"Polven koukistus seisten yhdellä jalalla",e:"laite"}, {n:"Selänojennus / hyperextensio",e:"kehonpaino"}, {n:"Hyvää huomenta tangolla",e:"tanko",sf:"huomenta"}, {n:"Sumomaastaveto",e:"tanko",sf:"veto"}, {n:"Trap bar -maastaveto",e:"tanko",sf:"veto"}, {n:"Romanialainen maastaveto Smith-laitteessa",e:"smith"}, {n:"Hyvää huomenta Smith-laitteessa",e:"smith",sf:"smith"}]},
   {g:"Pakarat", items:[{n:"Lantionnosto tangolla (hip thrust)",e:"tanko",sf:"thrust"}, {n:"Lantionnosto laitteessa",e:"laite"}, {n:"Lantionnosto Smith-laitteessa",e:"smith",sf:"thrust"}, {n:"Lantionnosto lattialta (glute bridge)",e:"kehonpaino"}, {n:"Pakaran ojennus taljassa",e:"talja"}, {n:"Pakaran potku laitteessa",e:"laite"}, {n:"Lonkan loitonnus laitteessa",e:"laite"}, {n:"Lonkan loitonnus taljassa",e:"talja"}, {n:"Lonkan lähennys laitteessa",e:"laite"}, {n:"Kahvakuulaheilautus",e:"käsipaino"}]},
@@ -122,13 +122,28 @@ function defFromLib(item, base){
   const d = {id:uid("x"), name:item.n, equip:item.e, step:item.st || STEPS[item.e] || 2.5,
              sets:base.sets, rmin:base.rmin, rmax:base.rmax, w:item.e === "kehonpaino" ? 0 : base.w};
   if(item.u === "s") Object.assign(d, {unit:"s"}, TIME_R);
+  /* Avustettu laite: kirjataan kevennys kiloina, kuorma = kehonpaino − kevennys. */
+  if(item.assist){ d.assist = true; d.w = base.w > 0 && base.w !== 20 ? base.w : 30; d.step = 5; }
   return d;
+}
+const isAssist = x => !!x && !!x.assist;
+/* Kuorman askel: avustetussa laitteessa "ylös" = vähemmän kevennystä. */
+function stepLoad(def, cur, dir){
+  if(isAssist(def)) return Math.max(0, nextWeight(def, cur, -dir));
+  return nextWeight(def, cur, dir);
+}
+/* Avustetun laitteen sanat perusteluihin: paino → kevennys, suunta kääntyy. */
+function assistWords(t){
+  return t.replace("paino nousee heti", "kevennys pienenee heti").replace("paino nousee", "kevennys pienenee")
+          .replace("paino kevenee askeleen", "kevennys kasvaa askeleen").replace("edelliseen painoon", "edelliseen kevennykseen")
+          .replace("samalla painolla", "samalla kevennyksellä").replace("Sama paino", "Sama kevennys");
 }
 
 /* Yhden sarjan teksti: "87,5 kg × 8", "2,5 kg × 40 s", "40 s", "8 min". */
 function fmtSet(x, t){
   if(isWarm(x)) return fmt(t.r || 0) + " min";
   if(isTime(x)) return (t.w ? fmt(t.w) + " kg × " : "") + fmt(t.r || 0) + " s";
+  if(isAssist(x)) return "kevennys " + fmt(t.w || 0) + " kg × " + fmt(t.r || 0);
   if(x && x.equip === "kehonpaino") return (t.w ? "+" + fmt(t.w) + " kg × " : "kehonpaino × ") + fmt(t.r || 0);
   return fmt(t.w || 0) + " kg × " + fmt(t.r || 0);
 }
@@ -158,6 +173,7 @@ function bwFrac(name){
 /* Yhden sarjan kuorma kiloina laskentaa varten. */
 function loadOf(x, t){
   const add = t.w || 0;
+  if(isAssist(x)){ const bw = S.settings && S.settings.bw; return bw > 0 ? Math.max(0, bw - add) : 0; }
   if(!x || x.equip !== "kehonpaino") return add;
   const bw = S.settings && S.settings.bw;
   return (bw > 0 ? bw * bwFrac(x.name) : 0) + add;
@@ -227,7 +243,7 @@ function seedPrograms(){
 
 function seed(){
   return {
-    v:9,
+    v:10,
     programs: seedPrograms(),
     sessions:[],
     active:null,
@@ -319,6 +335,16 @@ if(S.v < 8){
 if(S.v < 9){
   S.programs.forEach(p => { if(p.rot === undefined) p.rot = !/^Pika:/.test(String(p.name)); });
   S.v = 9; save();
+}
+
+/* v9 → v10: avustetut laitteet (kevennys kiloina). Merkitään nimen perusteella
+   ohjelmiin ja historiaan, jotta kuorma lasketaan kehonpaino − kevennys. */
+if(S.v < 10){
+  const mark = x => { if(/^avustettu /i.test(String(x.name)) && x.assist === undefined) x.assist = true; };
+  S.programs.forEach(p => p.ex.forEach(mark));
+  S.sessions.forEach(s => s.ex.forEach(mark));
+  if(S.active) S.active.ex.forEach(mark);
+  S.v = 10; save();
 }
 }
 migrate();
@@ -431,7 +457,7 @@ function suggest(exDef){
   const ok = L.ex.sets.filter(t=>t.ok);
   const lastW = ok[ok.length-1].w;
   const allMax = ok.length >= (L.ex.target||ok.length) && ok.every(t => t.r >= exDef.rmax);
-  return {w: allMax ? nextWeight(exDef, lastW, 1) : lastW, up: allMax, last:L};
+  return {w: allMax ? stepLoad(exDef, lastW, 1) : lastW, up: allMax, last:L};
 }
 
 /* ============ automaattinen harjoitusmalli ============
@@ -517,12 +543,13 @@ function autoPlan(def){
     const amrapBig = q0 && ls && ls.a && (ls.r || 0) >= (last.rmax || rmax) + (isTime(def) ? 15 : 3);
 
     if(q0 && (!st.twoSession || q1 || amrapBig)){
-      w = nextWeight(def, wl, 1); reps = fill(sets, rmin); up = true;
+      w = stepLoad(def, wl, 1); reps = fill(sets, rmin); up = true;
       reason = (amrapBig && st.twoSession && !q1)
         ? "Viimeinen sarja meni reilusti yli: paino nousee heti."
         : "Yläraja saavutettu" + (st.twoSession ? " kahdesti peräkkäin" : "") + ": paino nousee.";
+      if(isAssist(def) && wl === 0){ w = 0; up = false; reason = "Kevennys on jo 0: siirry samaan liikkeeseen ilman laitetta."; }
     } else if(underRange(last) && prev && underRange(prev)){
-      w = nextWeight(def, wl, -1); down = true;
+      w = stepLoad(def, wl, -1); down = true;
       /* Jos tällä painolla on jo tehty, jatketaan siitä mihin jäätiin eikä
          alarajalta — muuten iso askel (käsipaino 12,5 → 15) jättäisi
          kiertämään samaa kehää. */
@@ -554,6 +581,7 @@ function autoPlan(def){
     reason = "Kevennysviikko: sarjat puoleen, paino ennallaan.";
   }
 
+  if(isAssist(def)) reason = assistWords(reason);
   return {
     w: w, rmin: rmin, rmax: rmax, sets: sets, reps: reps,
     up: up, down: down, reason: reason, deload: deload,
@@ -566,7 +594,7 @@ function autoPlan(def){
 function autoEntry(def){
   const pl = autoPlan(def);
   return {
-    id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit,
+    id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit, assist: def.assist,
     step: def.step || STEPS[def.equip] || 2.5,
     rmin: pl.rmin, rmax: pl.rmax, target: pl.sets,
     up: pl.up, down: pl.down, reason: pl.reason, amrap: pl.amrap, amrapAll: pl.amrapAll, skip: false,
@@ -585,7 +613,7 @@ function makeEntry(def){
   if(isAuto()) return autoEntry(def);
   const sg = suggest(def);
   return {
-    id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit,
+    id: def.id || uid("x"), name: def.name, equip: def.equip, unit: def.unit, assist: def.assist,
     step: def.step || STEPS[def.equip] || 2.5,
     rmin: def.rmin, rmax: def.rmax, target: def.sets, up: sg.up, skip: false,
     sets: Array.from({length: def.sets}, () => ({w: sg.w, r: def.rmax, ok: false}))
@@ -889,7 +917,7 @@ function quoteFor(sess){
    ennätys — ennätys syntyy vasta kun aiempi taso ylitetään. */
 
 function workSetWeight(x){
-  if(isWarm(x)) return 0;
+  if(isWarm(x) || isAssist(x)) return 0;      /* avustetussa pienempi luku on parempi — ei kiloennätyksiä */
   const sets = x.sets || [];
   if(!sets.length) return 0;
   const target = x.target || sets.length;
@@ -901,7 +929,7 @@ function workSetWeight(x){
 }
 
 function maxSetWeight(x){
-  if(isWarm(x) || isTime(x)) return 0;
+  if(isWarm(x) || isTime(x) || isAssist(x)) return 0;
   const sets = x.sets || [];
   if(!sets.length) return 0;
   if(!sets.every(s => (s.r||0) === 1)) return 0;
@@ -1490,8 +1518,8 @@ function viewWorkout(v){
         '<span class="idx">'+(done && !x.skip ? "✓" : i+1)+'</span>'+
         '<span class="ex-name">'+esc(x.name)+
           '<span class="ex-meta"><span class="num">'+esc(summary)+'</span>'+
-          (x.up && !okSets.length ? '<span class="pill accent">Nosta painoa</span>' : '')+
-          (x.down && !okSets.length ? '<span class="pill">Kevennä</span>' : '')+'</span></span>'+
+          (x.up && !okSets.length ? '<span class="pill accent">'+(isAssist(x)?'Vähennä kevennystä':'Nosta painoa')+'</span>' : '')+
+          (x.down && !okSets.length ? '<span class="pill">'+(isAssist(x)?'Lisää kevennystä':'Kevennä')+'</span>' : '')+'</span></span>'+
       '</button>'));
 
     if(open && !x.skip && isWarm(x)){
@@ -1545,7 +1573,7 @@ function viewWorkout(v){
         body.appendChild(el(
           '<div class="setrow'+(j===0?" first":"")+(s.ok?" ok":"")+(s.a?" amrap":"")+'" data-ex="'+i+'" data-set="'+j+'">'+
             '<div class="sn">'+(s.a?'<span class="max">MAX</span>':(j+1))+'</div>'+
-            '<div class="field"><span>'+(x.equip==="kehonpaino"?"Lisäpaino kg":"Paino kg")+(x.equip==="käsipaino"?" / käsi":"")+'</span><div class="stepper">'+
+            '<div class="field"><span>'+(isAssist(x)?"Kevennys kg":x.equip==="kehonpaino"?"Lisäpaino kg":"Paino kg")+(x.equip==="käsipaino"?" / käsi":"")+'</span><div class="stepper">'+
               '<button class="step" data-d="-1" data-f="w" aria-label="Vähennä painoa">−</button>'+
               '<input inputmode="decimal" data-f="w" value="'+fmt(s.w)+'">'+
               '<button class="step" data-d="1" data-f="w" aria-label="Lisää painoa">+</button></div></div>'+
@@ -2209,7 +2237,7 @@ function openSheet(){
           '</div>'+
           '<div class="grid2">'+
             '<label class="f"><span class="eyebrow">Sarjat</span><input inputmode="numeric" data-x="sets" value="'+x.sets+'"></label>'+
-            '<label class="f"><span class="eyebrow">'+(x.equip==="kehonpaino"?"Lisäpaino kg":"Aloituspaino kg")+(x.equip==="käsipaino"?" / käsi":"")+'</span><input inputmode="decimal" data-x="w" value="'+fmt(x.w)+'"></label>'+
+            '<label class="f"><span class="eyebrow">'+(isAssist(x)?"Kevennys kg":x.equip==="kehonpaino"?"Lisäpaino kg":"Aloituspaino kg")+(x.equip==="käsipaino"?" / käsi":"")+'</span><input inputmode="decimal" data-x="w" value="'+fmt(x.w)+'"></label>'+
           '</div>'+
           '<div class="grid2">'+
             '<label class="f"><span class="eyebrow">'+tl+' väh.</span><input inputmode="numeric" data-x="rmin" value="'+x.rmin+'"></label>'+
@@ -2456,7 +2484,7 @@ document.addEventListener("click", async e => {
           if(!!item.warm !== isWarm(x) || (item.u==="s") !== isTime(x)){
             p.ex[st.exi] = Object.assign(defFromLib(item, {sets:x.sets||3, rmin:x.rmin||8, rmax:x.rmax||8, w:x.w||0}), {id:x.id});
           } else if(item.warm){ x.name = item.n; x.min = item.min || x.min; x.list = (item.list||[]).slice(); }
-          else { x.name=item.n; x.equip=item.e; x.step=item.st || STEPS[item.e] || 2.5; }
+          else { x.name=item.n; x.equip=item.e; x.step=item.st || STEPS[item.e] || 2.5; if(item.assist){ x.assist = true; x.step = 5; } else delete x.assist; }
         }
       }
       save();
