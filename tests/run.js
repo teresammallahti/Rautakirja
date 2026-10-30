@@ -696,6 +696,37 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(r) throw new Error('kysyttiin liian aikaisin');
     await p.evaluate(() => { S.settings = defaultSettings(); save(); render(); }); });
 
+  group('Kehonpaino kuormana');
+  await p.evaluate(() => { S.settings = defaultSettings(); S.active = null;
+    S.sessions = [{id:'bw1', programId:'t', name:'T', date:new Date().toISOString(), startedAt:0, finishedAt:1, ex:[
+      {name:'Leuanveto myötäotteella', equip:'kehonpaino', rmax:8, target:2, sets:[{w:0, r:5, ok:true}, {w:2.5, r:4, ok:true}]},
+      {name:'Punnerrus', equip:'kehonpaino', rmax:12, target:1, sets:[{w:0, r:20, ok:true}]},
+      {name:'Ylätalja myötäotteella', equip:'talja', rmax:10, target:1, sets:[{w:100, r:10, ok:true}]}]}];
+    save(); });
+  await T('ilman kehonpainoa vain lisapaino lasketaan (vanha kaytos)', async () => {
+    const r = await p.evaluate(() => { const s = S.sessions[0]; return [volume(s), bestE1(s.ex[0]), bestE1(s.ex[2])].map(Math.round).join(); });
+    if(r !== '1010,3,133') throw new Error(r); });
+  await T('kehonpaino 98: leuanveto 98x5 + 100,5x4, punnerrus 63,7x20', async () => {
+    const r = await p.evaluate(() => { S.settings.bw = 98; const s = S.sessions[0];
+      return [Math.round(volume(s)), Math.round(bestE1(s.ex[0])), Math.round(bestE1(s.ex[1])), loadOf(s.ex[0], s.ex[0].sets[1]), bwFrac('Punnerrus'), bwFrac('Dippi ojentajalle, pysty vartalo')].join(); });
+    /* 98*5 + 100.5*4 + 63.7*20 + 100*10 = 490+402+1274+1000 = 3166; e1RM leuanveto max(98*1.167, 100.5*1.133)=114 */
+    if(r !== '3166,114,106,100.5,0.65,1') throw new Error(r); });
+  await T('fmtSet: "kehonpaino × 5" ja "+2,5 kg × 4"; tanko ennallaan', async () => {
+    const r = await p.evaluate(() => { const s = S.sessions[0]; return [fmtSet(s.ex[0], s.ex[0].sets[0]), fmtSet(s.ex[0], s.ex[0].sets[1]), fmtSet(s.ex[2], s.ex[2].sets[0])].join('|'); });
+    if(r !== 'kehonpaino × 5|+2,5 kg × 4|100 kg × 10') throw new Error(r); });
+  await T('voimaindeksi: leuanveto mukana kun kehonpaino asetettu', async () => {
+    const r = await p.evaluate(() => { S.settings.bw = 98; const a = indexSeries()[0].lifts; S.settings.bw = null; const b = indexSeries()[0].lifts; return [a, b].join(); });
+    if(r !== '3,2') throw new Error(r); });
+  await T('Asetukset: kehonpainokentta, vihje ilman arvoa, tallennus ja rajat', async () => {
+    await p.locator('[data-tab="data"]').click(); await p.waitForTimeout(300);
+    const t0 = await p.textContent('#view'); if(!/Ilman kehonpainoa/.test(t0)) throw new Error('vihje puuttuu');
+    await p.locator('input[data-bw]').fill('98,4'); await p.locator('input[data-bw]').dispatchEvent('change'); await p.waitForTimeout(250);
+    let r = await p.evaluate(() => [S.settings.bw, /Ilman kehonpainoa/.test(document.getElementById('view').textContent)].join());
+    if(r !== '98.4,false') throw new Error(r);
+    await p.locator('input[data-bw]').fill('5'); await p.locator('input[data-bw]').dispatchEvent('change'); await p.waitForTimeout(250);
+    r = await p.evaluate(() => String(S.settings.bw)); if(r !== 'null') throw new Error(r);
+    await p.evaluate(() => { S.settings = defaultSettings(); S.sessions = []; save(); }); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

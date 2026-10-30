@@ -75,6 +75,12 @@ toimii). Aja kun moottorin tai indeksien logiikkaa muutetaan.
 Ohjelmat-välilehden ↑ ↓ -napit muuttavat ohjelmien järjestystä; sama järjestys näkyy kotinäkymässä.
 Ylimmän ↑ ja alimman ↓ kiertävät toiseen päähän.
 
+## Kehonpaino
+
+Asetuksissa annettu kehonpaino lasketaan kehonpainoliikkeiden kuormaksi työmäärään ja
+voimaindeksiin (`loadOf`, osuudet `BW_FRAC`: leuanveto, dippi ja riipunta 100 %, punnerrus 65 %,
+vaakasoutu 55 %, muut 50 %) lisäpainon päälle. Ilman kehonpainoa lasketaan vain lisäpaino.
+
 ## Sarjamallit
 
 Automaattitilassa valitaan sarjamalli (`SCHEMES`): tiivis (2 sarjaa, molemmat maksimiin), perus

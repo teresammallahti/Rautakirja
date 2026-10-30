@@ -129,7 +129,33 @@ function defFromLib(item, base){
 function fmtSet(x, t){
   if(isWarm(x)) return fmt(t.r || 0) + " min";
   if(isTime(x)) return (t.w ? fmt(t.w) + " kg × " : "") + fmt(t.r || 0) + " s";
+  if(x && x.equip === "kehonpaino") return (t.w ? "+" + fmt(t.w) + " kg × " : "kehonpaino × ") + fmt(t.r || 0);
   return fmt(t.w || 0) + " kg × " + fmt(t.r || 0);
+}
+
+/* Kehonpainoliikkeen kuorma = osuus kehonpainosta + lisäpaino. Ilman tätä
+   leuanveto 98-kiloisena olisi työmäärässä ja voimaindeksissä nolla, vaikka
+   se on raskaampi kuin ylätalja 100 kg:lla. Osuudet: koko keho nousee
+   leuanvedossa, dipissä ja riipunnassa (1,0); punnerruksessa käsillä on
+   noin 65 % kehonpainosta (Suprak ym. 2011: 64–75 % asennosta riippuen);
+   vaakasoudussa noin 55 %; jalkojen tai ylävartalon nostoissa noin 50 %.
+   Kehonpaino asetetaan Asetuksissa; ilman sitä lasketaan vain lisäpaino. */
+const BW_FRAC = [
+  [/leuanveto|dippi|riippuminen|riipunta|levypito/i, 1.0],
+  [/punnerrus/i, 0.65],
+  [/kehonpainosoutu/i, 0.55],
+  [/nordic|selänojennus|hyperextensio|lantionnosto|lankku|ab wheel|vatsarutistus|säären/i, 0.5]
+];
+function bwFrac(name){
+  for(const [re, f] of BW_FRAC) if(re.test(name)) return f;
+  return 0.5;
+}
+/* Yhden sarjan kuorma kiloina laskentaa varten. */
+function loadOf(x, t){
+  const add = t.w || 0;
+  if(!x || x.equip !== "kehonpaino") return add;
+  const bw = S.settings && S.settings.bw;
+  return (bw > 0 ? bw * bwFrac(x.name) : 0) + add;
 }
 const repUnit = x => isTime(x) ? " s" : "";
 
@@ -149,6 +175,7 @@ function defaultSettings(){
     deloadWeeks: 6,         /* 0 = ei kevennysviikkoja */
     cycleStart: null,       /* jakson alku; asetetaan kun automaattitila otetaan käyttöön */
     skipDeload: null,       /* ohitetun kevennysviikon jakson numero */
+    bw: null,               /* kehonpaino kg — kehonpainoliikkeiden kuorma työmäärään ja indeksiin */
     scheme: null,           /* sarjamalli: null = ohjelman mukaan, "tiivis" | "perus" | "laaja" */
     schemeFor: null         /* jakso jolle sarjamalli on valittu (kysytään jakson alussa) */
   };
@@ -319,7 +346,7 @@ function clock(ms){
 function e1rm(w,r){ return w>0 ? w*(1+r/30) : 0; }
 function volume(sess){
   let v=0; sess.ex.forEach(x => { if(isWarm(x) || isTime(x)) return;
-    x.sets.forEach(s => { if(s.ok) v += (s.w||0)*(s.r||0); }); }); return v;
+    x.sets.forEach(s => { if(s.ok) v += loadOf(x, s)*(s.r||0); }); }); return v;
 }
 function setsDone(sess){
   let n=0; sess.ex.forEach(x => { if(isWarm(x)) return; x.sets.forEach(s => { if(s.ok) n++; }); }); return n;
@@ -385,7 +412,7 @@ function historyFor(name){
     if(x){
       const ok = x.sets.filter(t=>t.ok);
       /* Pito- ja lämmittelyliikkeissä "paras" = pisin aika, koska e1RM ei sovi niihin. */
-      const val = t => (isTime(x) || isWarm(x)) ? (t.r||0) : e1rm(t.w,t.r);
+      const val = t => (isTime(x) || isWarm(x)) ? (t.r||0) : e1rm(loadOf(x, t), t.r);
       const top = ok.reduce((a,b)=> val(b)>val(a)?b:a, ok[0]);
       out.push({date:s.date, sets:ok, top, e1:val(top), x:x});
     }
@@ -1004,7 +1031,7 @@ function weekLabel(key){
 /* Paras e1RM liikkeelle yhdessä treenissä. */
 function bestE1(x){
   if(isWarm(x) || isTime(x)) return 0;
-  return x.sets.reduce((a, s) => Math.max(a, e1rm(s.w || 0, s.r || 0)), 0);
+  return x.sets.reduce((a, s) => Math.max(a, e1rm(loadOf(x, s), s.r || 0)), 0);
 }
 
 /* Lihasryhmä kuvaajaa varten: liikepankin ryhmä ilman alaotsikkoa
@@ -1969,6 +1996,17 @@ function viewData(v){
   }
   wrap.appendChild(el(
     '<div class="card pad">'+
+      '<div class="eyebrow">Kehonpaino</div>'+
+      '<div class="grid2" style="margin-top:9px;align-items:end">'+
+        '<label class="f"><span class="eyebrow">Kehonpaino kg</span><input inputmode="decimal" data-bw="1" value="'+(st.bw ? fmt(st.bw) : '')+'" placeholder="esim. 98"></label>'+
+        '<p style="font-size:12.5px;color:var(--dim);margin:0 0 6px">Leuanvedot, dipit ja punnerrukset lasketaan tällä työmäärään ja voimaindeksiin. Päivitä, kun paino muuttuu.</p>'+
+      '</div>'+
+      (st.bw ? '' : (S.sessions.some(s => s.ex.some(x => x.equip === "kehonpaino" && x.sets.some(t => t.ok)))
+        ? '<div class="hint" style="margin:10px 0 0;border-left-color:var(--gold)">Olet tehnyt kehonpainoliikkeitä. Ilman kehonpainoa ne näkyvät työmäärässä nollana.</div>' : ''))+
+    '</div>'));
+
+  wrap.appendChild(el(
+    '<div class="card pad">'+
       '<div class="eyebrow">Pilvi</div>'+
       '<h2 style="margin:5px 0 4px">Google Drive</h2>'+
       dBody+
@@ -2534,6 +2572,11 @@ document.addEventListener("change", async e => {
   if(inp.dataset && inp.dataset.mg){ route.mg = inp.value; render(); return; }
   if(inp.dataset && inp.dataset.dw){
     S.settings.deloadWeeks = parseInt(inp.value, 10) || 0; save(); render(); return;
+  }
+  if(inp.dataset && inp.dataset.bw){
+    let v = parseFloat(String(inp.value).replace(",", "."));
+    S.settings.bw = (isNaN(v) || v < 20 || v > 300) ? null : Math.round(v * 10) / 10;
+    save(); render(); return;
   }
   if(inp.dataset && inp.dataset.set){
     let v = parseInt(String(inp.value).replace(/[^0-9]/g, ""), 10);
