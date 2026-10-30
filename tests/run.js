@@ -708,9 +708,9 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(r !== '1010,3,133') throw new Error(r); });
   await T('kehonpaino 98: leuanveto 98x5 + 100,5x4, punnerrus 63,7x20', async () => {
     const r = await p.evaluate(() => { S.settings.bw = 98; const s = S.sessions[0];
-      return [Math.round(volume(s)), Math.round(bestE1(s.ex[0])), Math.round(bestE1(s.ex[1])), loadOf(s.ex[0], s.ex[0].sets[1]), bwFrac('Punnerrus'), bwFrac('Dippi ojentajalle, pysty vartalo')].join(); });
+      return [Math.round(volume(s)), Math.round(bestE1(s.ex[0])), Math.round(bestE1(s.ex[1])), loadOf(s.ex[0], s.ex[0].sets[1]), bwFrac('Punnerrus'), bwFrac('Dippi ojentajalle, pysty vartalo'), bwFrac('Riipuntapolvennosto'), bwFrac('Ab wheel -rullaus')].join(); });
     /* 98*5 + 100.5*4 + 63.7*20 + 100*10 = 490+402+1274+1000 = 3166; e1RM leuanveto max(98*1.167, 100.5*1.133)=114 */
-    if(r !== '3166,114,106,100.5,0.65,1') throw new Error(r); });
+    if(r !== '3166,114,106,100.5,0.65,1,0,0') throw new Error(r); });
   await T('fmtSet: "kehonpaino × 5" ja "+2,5 kg × 4"; tanko ennallaan', async () => {
     const r = await p.evaluate(() => { const s = S.sessions[0]; return [fmtSet(s.ex[0], s.ex[0].sets[0]), fmtSet(s.ex[0], s.ex[0].sets[1]), fmtSet(s.ex[2], s.ex[2].sets[0])].join('|'); });
     if(r !== 'kehonpaino × 5|+2,5 kg × 4|100 kg × 10') throw new Error(r); });

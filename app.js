@@ -138,13 +138,18 @@ function fmtSet(x, t){
    se on raskaampi kuin ylätalja 100 kg:lla. Osuudet: koko keho nousee
    leuanvedossa, dipissä ja riipunnassa (1,0); punnerruksessa käsillä on
    noin 65 % kehonpainosta (Suprak ym. 2011: 64–75 % asennosta riippuen);
-   vaakasoudussa noin 55 %; jalkojen tai ylävartalon nostoissa noin 50 %.
+   vaakasoudussa noin 55 %; selän ja lantion ojennuksissa noin 50 %;
+   keskivartaloliikkeissä toistaiseksi 0.
    Kehonpaino asetetaan Asetuksissa; ilman sitä lasketaan vain lisäpaino. */
 const BW_FRAC = [
-  [/leuanveto|dippi|riippuminen|riipunta|levypito/i, 1.0],
+  /* Keskivartalo toistaiseksi 0: vatsaliikkeissä nouseva osuus (jalat,
+     ylävartalo) on epäselvä eikä vertailukelpoinen nostoihin. Lisäpaino
+     lasketaan silti. */
+  [/riipuntapolvennosto|riipuntajalannosto|ab wheel|dead bug|vatsarutistus|sivutaivutus/i, 0],
+  [/leuanveto|dippi|riippuminen|levypito/i, 1.0],
   [/punnerrus/i, 0.65],
   [/kehonpainosoutu/i, 0.55],
-  [/nordic|selänojennus|hyperextensio|lantionnosto|lankku|ab wheel|vatsarutistus|säären/i, 0.5]
+  [/nordic|selänojennus|hyperextensio|lantionnosto|säären/i, 0.5]
 ];
 function bwFrac(name){
   for(const [re, f] of BW_FRAC) if(re.test(name)) return f;

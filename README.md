@@ -79,7 +79,7 @@ Ylimmän ↑ ja alimman ↓ kiertävät toiseen päähän.
 
 Asetuksissa annettu kehonpaino lasketaan kehonpainoliikkeiden kuormaksi työmäärään ja
 voimaindeksiin (`loadOf`, osuudet `BW_FRAC`: leuanveto, dippi ja riipunta 100 %, punnerrus 65 %,
-vaakasoutu 55 %, muut 50 %) lisäpainon päälle. Ilman kehonpainoa lasketaan vain lisäpaino.
+vaakasoutu 55 %, selän ja lantion ojennukset 50 %, keskivartaloliikkeet toistaiseksi 0) lisäpainon päälle. Ilman kehonpainoa lasketaan vain lisäpaino.
 
 ## Sarjamallit
 
