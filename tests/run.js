@@ -785,6 +785,36 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(r !== '10,true,true') throw new Error(r);
     await p.evaluate(() => { S.settings = defaultSettings(); S.sessions = []; save(); }); });
 
+  group('Omat liikkeet tilastoissa');
+  await p.evaluate(() => { S.settings = Object.assign(defaultSettings(), {bw:98}); S.active = null; S.sessions = []; S.meta.custom = {};
+    S.programs = [{id:'cu', name:'C', est:'', rot:true, ex:[
+      {id:'c1', name:'Vatsarutistus bosupallolla', equip:'kehonpaino', step:1, sets:3, rmin:12, rmax:15, w:0},
+      {id:'c2', name:'Oma talja', equip:'talja', step:2.5, sets:3, rmin:8, rmax:8, w:40}]}];
+    S.sessions = [{id:'cs', programId:'cu', name:'C', date:new Date().toISOString(), startedAt:0, finishedAt:1, ex:[
+      {name:'Vatsarutistus bosupallolla', equip:'kehonpaino', rmax:15, target:1, sets:[{w:0, r:15, ok:true}]},
+      {name:'Oma talja', equip:'talja', rmax:8, target:1, sets:[{w:40, r:8, ok:true}]}]}];
+    save(); });
+  await T('oletus: painollinen oma liike lasketaan kiloista, ryhma Muut; kehonpaino-oma 50 % paitsi nimen mukaan', async () => {
+    const r = await p.evaluate(() => { const s = S.sessions[0]; return [groupOf('Oma talja'), loadOf(s.ex[1], s.ex[1].sets[0]), bwFrac('Vatsarutistus bosupallolla'), bwFrac('Oma kyykky'), Math.round(volume(s))].join(); });
+    if(r !== 'Muut,40,0,0.5,320') throw new Error(r); });
+  await T('editorissa omalle liikkeelle lihasryhma ja kehonpaino-osuus; tallennus vaikuttaa tilastoihin', async () => {
+    await p.evaluate(() => { route.tab = 'ohjelmat'; render(); });
+    await p.locator('[data-editp="cu"]').click(); await p.waitForTimeout(300);
+    if(!(await p.locator('[data-exi="0"] [data-xcg]').count()) || !(await p.locator('[data-exi="0"] [data-xcb]').count())) throw new Error('kentat puuttuvat');
+    if(await p.locator('[data-exi="1"] [data-xcb]').count()) throw new Error('taljalle ei osuutta');
+    await p.locator('[data-exi="0"] [data-xcg]').selectOption('Keskivartalo');
+    await p.locator('[data-exi="0"] [data-xcb]').selectOption('0.5');
+    await p.locator('[data-exi="1"] [data-xcg]').selectOption('Selkä');
+    await p.locator('[data-savep]').click(); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => { const s = S.sessions[0]; return [groupOf('Vatsarutistus bosupallolla'), bwFrac('Vatsarutistus bosupallolla'), groupOf('Oma talja'), Math.round(volume(s)), weekVolume(7).Keskivartalo.direct, weekVolume(7)['Selkä'].direct].join(); });
+    if(r !== 'Keskivartalo,0.5,Selkä,1055,1,1') throw new Error(r); });
+  await T('kirjastoliikkeelle ei nayteta omia kenttia', async () => {
+    await p.evaluate(() => { S.programs[0].ex.push(defFromLib(LIB.flatMap(g => g.items).find(i => i.n === 'Takakyykky'))); save(); });
+    await p.locator('[data-editp="cu"]').click(); await p.waitForTimeout(300);
+    const n = await p.locator('[data-exi="2"] [data-xcg]').count(); if(n) throw new Error('kentta kirjastoliikkeella');
+    await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(150);
+    await p.evaluate(() => { S.settings = defaultSettings(); S.sessions = []; S.meta.custom = {}; save(); }); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 

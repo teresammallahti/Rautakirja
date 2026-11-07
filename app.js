@@ -166,7 +166,20 @@ const BW_FRAC = [
   [/kehonpainosoutu/i, 0.55],
   [/nordic|selänojennus|hyperextensio|lantionnosto|säären/i, 0.5]
 ];
+/* Omien liikkeiden tiedot (lihasryhmä, kehonpaino-osuus), nimen mukaan.
+   Asetetaan ohjelman muokkauksessa; pätevät myös historiaan, koska haku
+   tehdään nimellä. */
+const custom = name => (S.meta && S.meta.custom && S.meta.custom[name]) || null;
+function setCustom(name, data){
+  if(!name) return;
+  S.meta.custom = S.meta.custom || {};
+  const cur = Object.assign({}, S.meta.custom[name] || {}, data);
+  Object.keys(cur).forEach(k => { if(cur[k] === undefined || cur[k] === null || cur[k] === "") delete cur[k]; });
+  if(Object.keys(cur).length) S.meta.custom[name] = cur; else delete S.meta.custom[name];
+}
 function bwFrac(name){
+  const c = custom(name);
+  if(c && c.bwf !== undefined) return c.bwf;
   for(const [re, f] of BW_FRAC) if(re.test(name)) return f;
   return 0.5;
 }
@@ -1069,7 +1082,7 @@ function bestE1(x){
 
 /* Lihasryhmä kuvaajaa varten: liikepankin ryhmä ilman alaotsikkoa
    ("Selkä — leveys" → "Selkä"). Omat liikkeet → "Muut". */
-const groupOf = name => (MG[name] || "Muut").split(" — ")[0];
+const groupOf = name => (MG[name] || (custom(name) && custom(name).group) || "Muut").split(" — ")[0];
 
 /* Ryhmät joista on voimadataa (lämmittelyt ja pidot eivät kelpaa). */
 function chartGroups(){
@@ -2246,6 +2259,24 @@ function openSheet(){
           '<label class="f"><span class="eyebrow">Mittari</span><select data-x="unit">'+
             '<option value=""'+(isTime(x)?'':' selected')+'>toistot</option>'+
             '<option value="s"'+(isTime(x)?' selected':'')+'>sekunnit (pito)</option></select></label>'+
+          (MG[x.name] ? '' : (function(){
+            /* Oma liike: lihasryhmä tilastoihin ja kehonpainoliikkeessä nouseva osuus. */
+            const c = custom(x.name) || {};
+            const bwf = c.bwf !== undefined ? c.bwf : bwFrac(x.name || "");
+            return '<div class="autobox">'+
+              '<div class="eyebrow">Oma liike · tilastointi</div>'+
+              '<div class="grid2">'+
+                '<label class="f"><span class="eyebrow">Lihasryhmä</span><select data-xcg="1">'+
+                  '<option value=""'+(c.group?'':' selected')+'>Muut</option>'+
+                  QG.map(g => '<option'+(c.group===g?' selected':'')+'>'+esc(g)+'</option>').join("")+'</select></label>'+
+                (x.equip === "kehonpaino"
+                  ? '<label class="f"><span class="eyebrow">Kehonpainosta nousee</span><select data-xcb="1">'+
+                      [[0,"0 % (ei lasketa)"],[0.3,"30 % (jalat)"],[0.5,"50 % (ylävartalo)"],[0.65,"65 % (punnerrus)"],[1,"100 % (koko keho)"]]
+                        .map(o => '<option value="'+o[0]+'"'+(Math.abs(bwf-o[0])<1e-9?' selected':'')+'>'+o[1]+'</option>').join("")+'</select></label>'
+                  : '')+
+              '</div>'+
+              '<p style="font-size:12px;color:var(--dim);margin:0">Lihasryhmä ohjaa viikkovolyymia ja kuvaajaa. Kehonpaino-osuus kerrotaan Asetusten kehonpainolla työmäärään ja indeksiin.</p>'+
+            '</div>'; })())+
           (isAuto()
             ? '<div class="autobox">'+
                 '<div class="eyebrow">Automaattitila</div>'+
@@ -2658,6 +2689,10 @@ function readProgForm(p){
     box.querySelectorAll("[data-xc]").forEach(i => {
       if(i.dataset.xc === "amrap") x.noAmrap = !i.checked;
     });
+    const cg = box.querySelector("[data-xcg]"), cb = box.querySelector("[data-xcb]");
+    if((cg || cb) && x.name && !MG[x.name]){
+      setCustom(x.name, {group: cg ? cg.value : undefined, bwf: cb ? parseFloat(cb.value) : undefined});
+    }
     if(x.equip === "lämmittely"){
       x.warm = true; delete x.unit;
       x.min = Math.max(1, x.min || 5); x.list = x.list || [];
