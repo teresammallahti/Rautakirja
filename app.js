@@ -523,9 +523,9 @@ function exHistory(name, exceptId){
   const out = [];
   for(let i = S.sessions.length - 1; i >= 0; i--){
     const s = S.sessions[i];
-    if(s.deload || (exceptId && s.id === exceptId)) continue;
+    if(exceptId && s.id === exceptId) continue;
     const x = s.ex.find(e => e.name === name && e.sets.length);
-    if(x) out.push(x);
+    if(x && (!s.deload || x.full)) out.push(x);
   }
   return out;
 }
@@ -1112,8 +1112,9 @@ function indexSeries(mg){
     if(!weeks.has(k)) weeks.set(k, {key:k, vol:0, best:{}, n:0, nDeload:0});
     const w = weeks.get(k);
     w.vol += volume({ex: xs}); w.n++;
-    if(sess.deload){ w.nDeload++; return; }
+    if(sess.deload) w.nDeload++;
     xs.forEach(x => {
+      if(sess.deload && !x.full) return;     /* kevennyssarjat eivät päivitä voimaa */
       const e = bestE1(x);
       if(e > 0 && (!w.best[x.name] || e > w.best[x.name])) w.best[x.name] = e;
     });
@@ -1621,10 +1622,30 @@ function viewWorkout(v){
     el('<button class="btn wide ghost" data-cancel="1">Hylkää treeni</button>'));
 }
 
+/* Kevennysviikolla tehty täysi työ lasketaan täytenä. Liike on "täysi",
+   jos tehtyjä sarjoja on vähintään normaali määrä (sarjamalli tai liikkeen
+   oma) ja jokaisessa vähintään haarukan alarajan toistot. Silloin se
+   päivittää voimaindeksin ja kelpaa automaatin historiaan kuten tavallinen
+   treeni — kevennys ei saa piilottaa oikeasti tehtyä treeniä. */
+function markFullInDeload(A){
+  if(!A.deload) return;
+  const prog = S.programs.find(p => p.id === A.programId);
+  const sch = schemeOf();
+  A.ex.forEach(x => {
+    if(isWarm(x) || !x.sets.length) return;
+    const def = prog && (prog.ex.find(e => e.id === x.id) || prog.ex.find(e => e.name === x.name));
+    const normal = sch ? sch.sets : (def && def.sets) || S.settings.sets || 3;
+    const rmin = x.rmin || 1;
+    x.full = x.sets.length >= normal && x.sets.every(t => (t.r || 0) >= rmin);
+    if(!x.full) delete x.full;
+  });
+}
+
 function finishWorkout(){
   const A = S.active;
   A.ex.forEach(x => { x.sets = x.sets.filter(s=>s.ok); });
   A.ex = A.ex.filter(x => x.sets.length);
+  markFullInDeload(A);
   A.finishedAt = Date.now();
   if(!A.ex.length){ S.active=null; save(); render(); toast("Treeni hylättiin — ei kirjattuja sarjoja."); return; }
   S.sessions.push(A);
@@ -2161,7 +2182,7 @@ function openSheet(){
     const c = el('<div class="card"></div>');
     c.innerHTML = sess.ex.map(x =>
       '<div class="pad" style="border-top:1px solid var(--line)">'+
-        '<div style="font-weight:600;margin-bottom:5px">'+esc(x.name)+'</div>'+
+        '<div style="font-weight:600;margin-bottom:5px">'+esc(x.name)+(sess.deload ? ' <span class="pill'+(x.full?' good':'')+'">'+(x.full?'täysi treeni':'kevennys')+'</span>' : '')+'</div>'+
         x.sets.map((t,j)=>'<div class="kv"><span class="num" style="color:var(--faint)">'+(j+1)+'</span>'+
           '<span class="num">'+fmtSet(x, t)+'</span></div>').join("")+
       '</div>').join("");

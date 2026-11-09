@@ -825,6 +825,35 @@ const group = n => console.log('\n--- ' + n + ' ---');
     if(r[0] !== 4 || r[1] !== '0010' || !r[2] || r[3] !== 990) throw new Error(JSON.stringify(r));
     await p.evaluate(() => { S.sessions = []; save(); }); });
 
+  group('Taysi treeni kevennysviikolla');
+  await p.evaluate(() => { S.settings = Object.assign(defaultSettings(), {mode:'automaattinen', cycleStart:new Date(Date.now() - 5.3*7*864e5).toISOString()});
+    S.active = null; S.sessions = [];
+    S.programs = [{id:'dl', name:'D', est:'', rot:true, ex:[{id:'e1', name:'Penkkipunnerrus tangolla', equip:'tanko', step:2.5, sets:3, rmin:8, rmax:8, w:80}]}];
+    const mk = d => ({id:'h'+d, programId:'dl', name:'D', mode:'auto', date:new Date(Date.now() - d*864e5).toISOString(), startedAt:0, finishedAt:1,
+      ex:[{id:'e1', name:'Penkkipunnerrus tangolla', equip:'tanko', rmin:6, rmax:10, target:3, sets:[1,2,3].map(() => ({w:80, r:10, ok:true}))}]});
+    S.sessions = [mk(10), mk(7)]; save(); route.tab = 'treeni'; render(); });
+  await T('kevennysviikko aktiivinen ja treeni alkaa puolitettuna', async () => {
+    const r = await p.evaluate(() => cycleInfo().deload); if(!r) throw new Error('ei kevennys');
+    await p.locator('[data-start="dl"]').click(); await p.waitForTimeout(300);
+    const n = await p.evaluate(() => [S.active.deload, S.active.ex[0].sets.length].join()); if(n !== 'true,2') throw new Error(n); });
+  await T('puolitettu kevennys: ei paivita voimaa eika historiaa', async () => {
+    await p.evaluate(() => { S.active.ex[0].sets.forEach(t => { t.ok = true; t.r = 6; }); finishWorkout(); closeSheet(); route.sheet = null; });
+    const r = await p.evaluate(() => { const s = S.sessions[S.sessions.length-1]; return [!!s.ex[0].full, exHistory('Penkkipunnerrus tangolla').length, Math.round(indexSeries().slice(-1)[0].strength)].join(); });
+    if(r !== 'false,2,0') throw new Error(r); });
+  await T('taysi treeni kevennysviikolla: lisatty sarja + toistot -> full, paivittaa voiman ja historian', async () => {
+    await p.locator('[data-start="dl"]').click(); await p.waitForTimeout(300);
+    await p.evaluate(() => { const x = S.active.ex[0]; x.sets.push({w:82.5, r:10, ok:true}); x.sets.forEach(t => { t.ok = true; t.w = 82.5; t.r = 10; }); finishWorkout(); closeSheet(); route.sheet = null; });
+    const r = await p.evaluate(() => { const s = S.sessions[S.sessions.length-1]; const idx = indexSeries();
+      return [s.ex[0].full === true, s.ex[0].sets.length, exHistory('Penkkipunnerrus tangolla').length, idx.slice(-1)[0].strength > 2, idx.slice(-1)[0].deload].join(); });
+    if(r !== 'true,3,3,true,true') throw new Error(r); });
+  await T('yhteenvedossa merkinta "täysi treeni" / "kevennys"', async () => {
+    await p.evaluate(() => { route.sheet = {type:'session', id:S.sessions[S.sessions.length-1].id}; openSheet(); });
+    await p.waitForTimeout(200);
+    let t = await p.textContent('#sheetbg'); if(!/täysi treeni/.test(t)) throw new Error(t.slice(0, 200));
+    await p.evaluate(() => { closeSheet(); route.sheet = {type:'session', id:S.sessions[S.sessions.length-2].id}; openSheet(); }); await p.waitForTimeout(200);
+    t = await p.textContent('#sheetbg'); if(!/kevennys/.test(t) || /täysi treeni/.test(t)) throw new Error(t.slice(0, 200));
+    await p.evaluate(() => { closeSheet(); route.sheet = null; S.settings = defaultSettings(); S.sessions = []; save(); render(); }); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 
