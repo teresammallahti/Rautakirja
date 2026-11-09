@@ -120,7 +120,8 @@ window.sim = function(opts){
   T('ei NaN/Infinity', allFinite(r));
   T('paino muuttuu enintään askeleen per treeni (penkki)', stepOk(r, 'Penkkipunnerrus tangolla', 2.5) === 0, 'hyppyjä ' + stepOk(r, 'Penkkipunnerrus tangolla', 2.5));
   T('käsipaino pysyy ruudukossa (alkuarvon 12 jälkeen)', weightsOf(r, 'Hauiskääntö käsipainoilla').filter(w => w !== 12).every(w => (w <= 10 ? Number.isInteger(w) : Math.abs(w / 2.5 - Math.round(w / 2.5)) < 1e-9)));
-  T('indeksi ei putoa kevennysviikolla', r.idx.every(q => !/^vk (7|13)$/.test(q.label)) , r.idx.map(q => q.label).join(','));
+  { const dl = r.idx.filter(q => q.deload); const i = r.idx.findIndex(q => q.deload);
+    T('kevennysviikko on mukana taulukossa (' + dl.map(q => q.label).join(',') + ') eikä voima putoa siinä', dl.length === 2 && i > 0 && Math.abs(r.idx[i].strength - r.idx[i-1].strength) < 1e-9 && r.idx[i].rawVol > 0); }
   { const i = r.log.findIndex(s => s.ex.find(e => e.n === 'Hauiskääntö käsipainoilla').down);
     const x = i >= 0 && r.log[i].ex.find(e => e.n === 'Hauiskääntö käsipainoilla');
     T('askel alas palaa aiempiin toistoihin, ei alarajalle (' + (x ? x.r.join(',') + ' @ ' + x.w : 'ei kevennystä') + ')', !x || x.r[0] >= 8); }
@@ -155,7 +156,7 @@ window.sim = function(opts){
   group('D. Kolmen viikon tauko viikoilla 4–6');
   r = await p.evaluate(o => sim(o), {weeks:12, perWeek:2, prog:PROG, lifter:{cap:CAP, growth:1, breakFrom:3, breakWeeks:3}});
   T('ei NaN/Infinity', allFinite(r));
-  T('indeksissä vain treenatut viikot ilman kevennystä (' + r.idx.length + ' pistettä)', r.idx.length === 8);
+  T('indeksissä vain treenatut viikot, kevennys mukana (' + r.idx.length + ' pistettä)', r.idx.length === 9);
   { const i = r.log.findIndex(s => s.wk >= 6); const pre = r.log[i - 1], post = r.log[i];
     T('tauon jälkeen paino ei hyppää ylös', post.ex.every((x, k) => x.w <= pre.ex[k].w + 2.5)); }
   T('jaksolaskuri jatkaa kalenterin mukaan tauon yli (viikko ' + (r.cyc ? r.cyc.week : '?') + '/' + (r.cyc ? r.cyc.len : '?') + ')', r.cyc && r.cyc.len === 6);

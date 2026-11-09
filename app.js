@@ -1096,10 +1096,11 @@ function chartGroups(){
    joilla ryhmää on treenattu — muuten väliviikko näkyisi −100 %:n työmääränä. */
 function indexSeries(mg){
   if(!S.sessions.length) return [];
-  /* Kevennysviikot pois: puolitetut sarjat alarajan toistoilla painaisivat
-     sekä voima- että työmääräindeksiä, vaikka mikään ei ole heikentynyt. */
-  const sorted = S.sessions.filter(s => !s.deload).sort((a, b) => new Date(a.date) - new Date(b.date));
-  if(!sorted.length) return [];
+  /* Kevennystreenit lasketaan TYÖMÄÄRÄÄN (tehty työ on tehty), mutta eivät
+     päivitä VOIMAA: puolitetut sarjat alarajan toistoilla näyttäisivät
+     heikentymiseltä, vaikka mikään ei ole heikentynyt. Aiempi versio jätti
+     kevennystreenit kokonaan pois, jolloin viikko katosi taulukosta. */
+  const sorted = [...S.sessions].sort((a, b) => new Date(a.date) - new Date(b.date));
   const inG = x => !mg || groupOf(x.name) === mg;
 
   /* viikko -> { vol, best: {liike: e1RM} } */
@@ -1108,9 +1109,10 @@ function indexSeries(mg){
     const xs = sess.ex.filter(inG);
     if(mg && !xs.some(x => bestE1(x) > 0)) return;
     const k = weekKey(sess.date);
-    if(!weeks.has(k)) weeks.set(k, {key:k, vol:0, best:{}});
+    if(!weeks.has(k)) weeks.set(k, {key:k, vol:0, best:{}, n:0, nDeload:0});
     const w = weeks.get(k);
-    w.vol += volume({ex: xs});
+    w.vol += volume({ex: xs}); w.n++;
+    if(sess.deload){ w.nDeload++; return; }
     xs.forEach(x => {
       const e = bestE1(x);
       if(e > 0 && (!w.best[x.name] || e > w.best[x.name])) w.best[x.name] = e;
@@ -1143,7 +1145,8 @@ function indexSeries(mg){
       strength: n ? sum / n : 0,
       volume: vol0 > 0 ? (w.vol / vol0 - 1) * 100 : 0,
       rawVol: w.vol,
-      lifts: n
+      lifts: n,
+      deload: w.nDeload > 0 && w.nDeload === w.n
     });
   });
   return out;
@@ -1278,14 +1281,14 @@ function viewChart(){
     (route.ctable
       ? '<div style="overflow-x:auto;margin-top:10px"><table class="dt">'+
         '<thead><tr><th>Viikko</th><th>Voima</th><th>Työmäärä</th><th>Volyymi</th></tr></thead><tbody>'+
-        pts.map(p => '<tr><td>'+esc(p.label)+'</td><td class="num">'+pct(p.strength)+' %</td>'+
+        pts.map(p => '<tr><td>'+esc(p.label)+(p.deload?' <small style="color:var(--dim)">kevennys</small>':'')+'</td><td class="num">'+pct(p.strength)+' %</td>'+
           '<td class="num">'+pct(p.volume)+' %</td><td class="num">'+fmt(Math.round(p.rawVol))+' kg</td></tr>').join("")+
         '</tbody></table></div>'
       : '')+
     '<p style="font-size:12.5px;color:var(--dim);margin:11px 0 0">'+
       (mg ? '<b>'+esc(mg)+':</b> vain tämän lihasryhmän liikkeet ja viikot, joilla niitä on tehty. ' : '')+
       'Voima = arvioidun maksimin keskimääräinen muutos liikkeittäin. '+
-      'Työmäärä = viikon kokonaisvolyymi suhteessa ensimmäiseen treeniviikkoon.</p>';
+      'Työmäärä = viikon kokonaisvolyymi suhteessa ensimmäiseen treeniviikkoon. Kevennysviikko lasketaan työmäärään mutta ei muuta voimaa.</p>';
 
   c._pts = pts;
   return c;
@@ -1318,7 +1321,7 @@ function chartHover(i){
   });
 
   const p = pts[i];
-  tip.innerHTML = '<b>'+esc(p.label)+'</b>' +
+  tip.innerHTML = '<b>'+esc(p.label)+(p.deload?' · kevennys':'')+'</b>' +
     shown().map(se => '<span><i style="background:'+serColor(se)+'"></i>'+se.name+
       ' <span class="num">'+pct(p[se.k])+' %</span></span>').join("");
   tip.hidden = false;

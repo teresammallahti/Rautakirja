@@ -1,7 +1,7 @@
 /* Rautakirja – palvelutyöntekijä.
    Sivu ladataan verkosta kun se on saatavilla, muuten välimuistista.
    Nosta CACHE-versiota aina kun index.html muuttuu. */
-const CACHE = "rautakirja-v30";
+const CACHE = "rautakirja-v31";
 const SHELL = [
   "./",
   "./index.html",

@@ -815,6 +815,16 @@ const group = n => console.log('\n--- ' + n + ' ---');
     await p.locator('#sheetbg [data-close]').first().click(); await p.waitForTimeout(150);
     await p.evaluate(() => { S.settings = defaultSettings(); S.sessions = []; S.meta.custom = {}; save(); }); });
 
+  group('Kevennysviikko indeksissa (kayttajapalaute)');
+  await T('kevennysviikon treenit lasketaan tyomaaraan, voima jaatyy, viikko nakyy taulukossa', async () => {
+    const r = await p.evaluate(() => { S.settings = defaultSettings(); S.active = null;
+      const mk = (d, w, dl, reps) => ({id:'d'+d, programId:'t', name:'T', date:new Date(2026,0,d).toISOString(), startedAt:0, finishedAt:1, deload:dl,
+        ex:[{name:'Penkkipunnerrus tangolla', equip:'tanko', rmax:8, target:3, sets:Array.from({length: dl ? 2 : 3}, () => ({w, r:reps, ok:true}))}]});
+      S.sessions = [mk(5, 80, false, 8), mk(12, 82.5, false, 8), mk(19, 82.5, true, 6), mk(26, 85, false, 8)]; save();
+      const idx = indexSeries(); return [idx.length, idx.map(q => q.deload ? 1 : 0).join(''), Math.round(idx[1].strength) === Math.round(idx[2].strength), idx[2].rawVol]; });
+    if(r[0] !== 4 || r[1] !== '0010' || !r[2] || r[3] !== 990) throw new Error(JSON.stringify(r));
+    await p.evaluate(() => { S.sessions = []; save(); }); });
+
   group('Lopuksi');
   await T('ei JS-virheita koko ajon aikana', async () => { if(errs.length) throw new Error(errs.join(' | ')); });
 
